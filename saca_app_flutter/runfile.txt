@@ -1,0 +1,2 @@
+lrun this first
+$env:Path += ";C:\Users\kimso\develop\flutter\bin"
