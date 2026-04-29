@@ -1,6 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 void main() {
   runApp(const SACAApp());
@@ -28,6 +34,30 @@ class TriageSession {
   List<String> painLocation;
 }
 
+class TriageApiResult {
+  TriageApiResult({
+    required this.triageLevel,
+    required this.topCondition,
+    required this.transcriptFinal,
+    required this.recommendation,
+  });
+
+  factory TriageApiResult.fromJson(Map<String, dynamic> json) {
+    return TriageApiResult(
+      triageLevel: (json['triage_level'] ?? 'Moderate').toString(),
+      topCondition: (json['top_condition'] ?? json['predicted_disease'] ?? '-')
+          .toString(),
+      transcriptFinal: (json['transcript_final'] ?? json['transcript_final_text'] ?? json['transcript'] ?? '').toString(),
+      recommendation: (json['recommendation'] ?? '').toString(),
+    );
+  }
+
+  final String triageLevel;
+  final String topCondition;
+  final String transcriptFinal;
+  final String recommendation;
+}
+
 class SACAAppState extends ChangeNotifier {
   AppLanguage _selectedLanguage = AppLanguage.english;
 
@@ -48,8 +78,8 @@ class SACAStateScope extends InheritedNotifier<SACAAppState> {
   }) : super(notifier: state, child: child);
 
   static SACAAppState of(BuildContext context) {
-    final SACAStateScope? scope =
-        context.dependOnInheritedWidgetOfExactType<SACAStateScope>();
+    final SACAStateScope? scope = context
+        .dependOnInheritedWidgetOfExactType<SACAStateScope>();
     assert(scope != null, 'SACAStateScope not found in context');
     return scope!.notifier!;
   }
@@ -93,11 +123,14 @@ class SACAColors {
   static const Color deepClinicalGreen = Color(0xFF1A5241);
   static const Color warningRedBrown = Color(0xFF9B4433);
   static const Color earthClay = Color(0xFFB15D2C);
-  static const Color pageBackground = Color(0xFFF7F6F3);
+  static const Color pageBackground = Color(0xFFFAF8F5);
   static const Color cardBackground = Colors.white;
   static const Color charcoal = Color(0xFF1F1F1F);
   static const Color secondaryText = Color(0xFF5E5A56);
   static const Color subtleBorder = Color(0xFFE8E2D8);
+  static const Color triageCrimson = Color(0xFFB24A4A);
+  static const Color triageMarigold = Color(0xFFC6922B);
+  static const Color triageSafeGreen = Color(0xFF3E8A63);
 }
 
 class SACAStrings {
@@ -311,35 +344,39 @@ class ReportingMethodPage extends StatelessWidget {
                   const SizedBox(height: 22),
                   Expanded(
                     child: LayoutBuilder(
-                      builder: (BuildContext context, BoxConstraints constraints) {
-                        final int columns = constraints.maxWidth >= 980 ? 3 : 1;
-                        return GridView.builder(
-                          itemCount: methods.length,
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            crossAxisSpacing: 18,
-                            mainAxisSpacing: 18,
-                            childAspectRatio: columns == 3 ? 1.03 : 1.7,
-                          ),
-                          itemBuilder: (BuildContext context, int index) {
-                            final ReportModeCardData data = methods[index];
-                            return ReportModeCard(
-                              data: data,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => WorkspacePage(
-                                      mode: data.mode,
-                                      heroTag: data.heroTag,
-                                      triageService: triageService,
-                                    ),
+                      builder:
+                          (BuildContext context, BoxConstraints constraints) {
+                            final int columns = constraints.maxWidth >= 980
+                                ? 3
+                                : 1;
+                            return GridView.builder(
+                              itemCount: methods.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: columns,
+                                    crossAxisSpacing: 18,
+                                    mainAxisSpacing: 18,
+                                    childAspectRatio: columns == 3 ? 1.03 : 1.7,
                                   ),
+                              itemBuilder: (BuildContext context, int index) {
+                                final ReportModeCardData data = methods[index];
+                                return ReportModeCard(
+                                  data: data,
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => WorkspacePage(
+                                          mode: data.mode,
+                                          heroTag: data.heroTag,
+                                          triageService: triageService,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             );
                           },
-                        );
-                      },
                     ),
                   ),
                 ],
@@ -368,19 +405,16 @@ class WorkspacePage extends StatefulWidget {
   State<WorkspacePage> createState() => _WorkspacePageState();
 }
 
-class _WorkspacePageState extends State<WorkspacePage>
-    with SingleTickerProviderStateMixin {
-  final TextEditingController _chiefComplaintController = TextEditingController();
+class _WorkspacePageState extends State<WorkspacePage> {
+  final TextEditingController _chiefComplaintController =
+      TextEditingController();
   final TextEditingController _onsetController = TextEditingController();
   final TextEditingController _medicationsController = TextEditingController();
   final TextEditingController _allergiesController = TextEditingController();
   late final TriageSession _session;
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseScale;
   int _currentStep = 0;
   bool _isWorsening = false;
-  bool _isListening = false;
-  final Set<int> _capturedVoiceSteps = <int>{};
+  final Map<int, String> _capturedAnswers = <int, String>{};
   static const List<String> _bodyParts = <String>[
     'Head',
     'Chest',
@@ -392,7 +426,6 @@ class _WorkspacePageState extends State<WorkspacePage>
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _chiefComplaintController.dispose();
     _onsetController.dispose();
     _medicationsController.dispose();
@@ -403,13 +436,6 @@ class _WorkspacePageState extends State<WorkspacePage>
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _pulseScale = Tween<double>(begin: 1.0, end: 1.16).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
     _session = TriageSession(
       chiefComplaint: '',
       onset: '',
@@ -487,9 +513,9 @@ class _WorkspacePageState extends State<WorkspacePage>
   Widget _buildWorkspaceBody(WorkspaceConfig config) {
     switch (widget.mode) {
       case ReportMode.voice:
-        return _buildQuestionnaire(config: config, showVoicePrompt: true);
+        return _buildQuestionnaire(config: config);
       case ReportMode.text:
-        return _buildQuestionnaire(config: config, showVoicePrompt: false);
+        return _buildQuestionnaire(config: config);
       case ReportMode.selection:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +560,9 @@ class _WorkspacePageState extends State<WorkspacePage>
                 ),
                 itemBuilder: (BuildContext context, int index) {
                   final String bodyPart = _bodyParts[index];
-                  final bool selected = _session.painLocation.contains(bodyPart);
+                  final bool selected = _session.painLocation.contains(
+                    bodyPart,
+                  );
                   return Material(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
@@ -596,7 +624,10 @@ class _WorkspacePageState extends State<WorkspacePage>
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => ResultSummaryPage(session: _session),
+                      builder: (_) => ResultSummaryPage(
+                        session: _session,
+                        triageService: widget.triageService,
+                      ),
                     ),
                   );
                 },
@@ -614,70 +645,56 @@ class _WorkspacePageState extends State<WorkspacePage>
     }
   }
 
-  Widget _buildQuestionnaire({
-    required WorkspaceConfig config,
-    required bool showVoicePrompt,
-  }) {
+  Widget _buildQuestionnaire({required WorkspaceConfig config}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (!showVoicePrompt) ...<Widget>[
-          Hero(
-            tag: widget.heroTag,
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: config.accentColor.withOpacity(0.14),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.edit_note_rounded,
-                color: config.accentColor,
-                size: 34,
-              ),
+        Hero(
+          tag: widget.heroTag,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: config.accentColor.withOpacity(0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.edit_note_rounded,
+              color: config.accentColor,
+              size: 34,
             ),
           ),
-          const SizedBox(height: 16),
-        ],
+        ),
+        const SizedBox(height: 16),
         Expanded(
           child: _BaseCard(
             active: false,
             accentColor: config.accentColor,
             child: Column(
-              crossAxisAlignment: showVoicePrompt
-                  ? CrossAxisAlignment.center
-                  : CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                if (showVoicePrompt) ...<Widget>[
+                if (widget.mode != ReportMode.voice) ...<Widget>[
                   Text(
-                    _bilingualPrompt(
-                      english: 'Tap to Speak',
-                      warlpiri: 'Nyangkura-pinyi',
-                    ),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: config.accentColor,
+                    _stepQuestion(_currentStep),
+                    textAlign: TextAlign.start,
+                    style: const TextStyle(
+                      fontSize: 23,
+                      height: 1.25,
                       fontWeight: FontWeight.w800,
-                      fontSize: 30,
+                      color: SACAColors.charcoal,
                     ),
                   ),
                   const SizedBox(height: 14),
                 ],
-                Text(
-                  _stepQuestion(_currentStep),
-                  textAlign: showVoicePrompt ? TextAlign.center : TextAlign.start,
-                  style: const TextStyle(
-                    fontSize: 23,
-                    height: 1.25,
-                    fontWeight: FontWeight.w800,
-                    color: SACAColors.charcoal,
-                  ),
-                ),
-                const SizedBox(height: 14),
                 Expanded(
-                  child: showVoicePrompt
-                      ? _buildVoiceCaptureArea(config)
+                  child: widget.mode == ReportMode.voice
+                      ? ClinicalInputCard(
+                          questionText: _stepQuestion(_currentStep),
+                          triageService: widget.triageService,
+                          accentColor: config.accentColor,
+                          initialTranscript: _capturedAnswers[_currentStep] ?? '',
+                          onConfirmed: _handleClinicalConfirm,
+                        )
                       : _buildStepInput(config),
                 ),
                 Row(
@@ -698,28 +715,28 @@ class _WorkspacePageState extends State<WorkspacePage>
                         ),
                       ),
                     ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: config.accentColor,
-                      ),
-                      onPressed:
-                          (showVoicePrompt && !_capturedVoiceSteps.contains(_currentStep))
-                          ? null
-                          : () => _goNextOrSubmit(),
-                      child: Text(
-                        _currentStep == 4
-                            ? SACAStrings.tr(
-                                context: context,
-                                english: 'Calculate Triage',
-                                warlpiri: 'Calculate Triage',
-                              )
-                            : SACAStrings.tr(
-                                context: context,
-                                english: 'Next',
-                                warlpiri: 'Next',
-                              ),
-                      ),
-                    ),
+                    if (widget.mode != ReportMode.voice)
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: config.accentColor,
+                        ),
+                        onPressed: () => _goNextOrSubmit(),
+                        child: Text(
+                          _currentStep == 4
+                              ? SACAStrings.tr(
+                                  context: context,
+                                  english: 'Calculate Triage',
+                                  warlpiri: 'Calculate Triage',
+                                )
+                              : SACAStrings.tr(
+                                  context: context,
+                                  english: 'Next',
+                                  warlpiri: 'Next',
+                                ),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
                   ],
                 ),
               ],
@@ -727,47 +744,6 @@ class _WorkspacePageState extends State<WorkspacePage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildVoiceCaptureArea(WorkspaceConfig config) {
-    return Center(
-      child: ScaleTransition(
-        scale: _pulseScale,
-        child: Stack(
-          alignment: Alignment.center,
-          children: <Widget>[
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: _isListening ? 176 : 150,
-              height: _isListening ? 176 : 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: config.accentColor.withOpacity(_isListening ? 0.18 : 0.1),
-              ),
-            ),
-            Hero(
-              tag: widget.heroTag,
-              child: GestureDetector(
-                onTap: _captureVoiceStep,
-                child: Container(
-                  width: 128,
-                  height: 128,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: SACAColors.deepClinicalGreen,
-                  ),
-                  child: const Icon(
-                    Icons.mic_rounded,
-                    color: Colors.white,
-                    size: 56,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -801,7 +777,10 @@ class _WorkspacePageState extends State<WorkspacePage>
                 ),
                 ChoiceChip(
                   label: Text(
-                    _bilingualPrompt(english: 'Getting Worse', warlpiri: 'Panu'),
+                    _bilingualPrompt(
+                      english: 'Getting Worse',
+                      warlpiri: 'Panu',
+                    ),
                   ),
                   selected: _isWorsening,
                   onSelected: (_) => setState(() => _isWorsening = true),
@@ -838,9 +817,7 @@ class _WorkspacePageState extends State<WorkspacePage>
               runSpacing: 10,
               children: <Widget>[
                 ChoiceChip(
-                  label: Text(
-                    _bilingualPrompt(english: 'No', warlpiri: 'No'),
-                  ),
+                  label: Text(_bilingualPrompt(english: 'No', warlpiri: 'No')),
                   selected: !_isWorsening,
                   onSelected: (_) => setState(() => _isWorsening = false),
                 ),
@@ -917,7 +894,8 @@ class _WorkspacePageState extends State<WorkspacePage>
       case 1:
         return _bilingualPrompt(
           english: 'Are the symptoms getting better or worse?',
-          warlpiri: 'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
+          warlpiri:
+              'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
         );
       case 2:
         return _bilingualPrompt(
@@ -996,18 +974,11 @@ class _WorkspacePageState extends State<WorkspacePage>
 
   void _goNextOrSubmit() {
     if (widget.mode == ReportMode.voice) {
-      _session.chiefComplaint = _capturedVoiceSteps.contains(0)
-          ? 'Voice response captured (symptoms)'
-          : _session.chiefComplaint;
-      _session.onset = _capturedVoiceSteps.contains(2)
-          ? 'Voice response captured (onset)'
-          : _session.onset;
-      _session.medications = _capturedVoiceSteps.contains(4)
-          ? 'Voice response captured (medications)'
-          : _session.medications;
-      _session.allergies = _capturedVoiceSteps.contains(4)
-          ? 'Voice response captured (allergies)'
-          : _session.allergies;
+      _session.chiefComplaint = (_capturedAnswers[0] ?? '').trim();
+      _session.onset = (_capturedAnswers[2] ?? '').trim();
+      final String medsAllergies = (_capturedAnswers[4] ?? '').trim();
+      _session.medications = medsAllergies;
+      _session.allergies = medsAllergies;
     } else {
       _session.chiefComplaint = _chiefComplaintController.text.trim();
       _session.onset = _onsetController.text.trim();
@@ -1021,25 +992,644 @@ class _WorkspacePageState extends State<WorkspacePage>
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ResultSummaryPage(session: _session),
+        builder: (_) => ResultSummaryPage(
+          session: _session,
+          triageService: widget.triageService,
+        ),
       ),
     );
   }
 
-  Future<void> _captureVoiceStep() async {
-    if (_isListening) return;
-    setState(() {
-      _isListening = true;
-    });
+  void _handleClinicalConfirm(String value) {
+    final String cleaned = value.trim();
+    _capturedAnswers[_currentStep] = cleaned;
+
+    if (_currentStep == 1) {
+      _isWorsening = _parseWorsening(cleaned);
+    } else if (_currentStep == 3) {
+      _isWorsening = _parseWorsening(cleaned);
+    }
+
+    _goNextOrSubmit();
+  }
+
+  bool _parseWorsening(String text) {
+    final String s = text.toLowerCase();
+    if (s.contains('no') || s.contains('better') || s.contains('improve')) {
+      return false;
+    }
+    if (s.contains('yes') || s.contains('worse') || s.contains('panu')) {
+      return true;
+    }
+    return _isWorsening;
+  }
+
+}
+
+enum _VoiceCaptureState { idle, recording, processing }
+
+class ClinicalInputCard extends StatefulWidget {
+  const ClinicalInputCard({
+    super.key,
+    required this.questionText,
+    required this.triageService,
+    required this.accentColor,
+    required this.initialTranscript,
+    required this.onConfirmed,
+  });
+
+  final String questionText;
+  final TriageService triageService;
+  final Color accentColor;
+  final String initialTranscript;
+  final ValueChanged<String> onConfirmed;
+
+  @override
+  State<ClinicalInputCard> createState() => _ClinicalInputCardState();
+}
+
+class _ClinicalInputCardState extends State<ClinicalInputCard>
+    with SingleTickerProviderStateMixin {
+  final AudioRecorder _recorder = AudioRecorder();
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
+
+  late final TextEditingController _transcriptController;
+  bool _isRecording = false;
+  bool _isProcessing = false;
+  bool _permissionError = false;
+
+  String? _audioPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _transcriptController =
+        TextEditingController(text: widget.initialTranscript);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseScale = Tween<double>(begin: 1.0, end: 1.16).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant ClinicalInputCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTranscript != oldWidget.initialTranscript &&
+        !_isRecording &&
+        !_isProcessing) {
+      _transcriptController.text = widget.initialTranscript;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _recorder.dispose();
+    _transcriptController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggleRecording() async {
+    if (_isProcessing) return;
+
+    if (_isRecording) {
+      await _stopAndTranscribe();
+      return;
+    }
+
+    final bool hasPermission = await _recorder.hasPermission(request: true);
+    debugPrint('[VOICE] Microphone permission granted: $hasPermission');
+    if (!hasPermission) {
+      setState(() => _permissionError = true);
+      return;
+    }
+    setState(() => _permissionError = false);
+
+    final Directory tempDir = await getTemporaryDirectory();
+    final String filePath =
+        '${tempDir.path}/saca_${DateTime.now().millisecondsSinceEpoch}.wav';
+    _audioPath = filePath;
+    debugPrint('[VOICE] Recording path: $_audioPath');
+
+    await _recorder.start(
+      RecordConfig(encoder: AudioEncoder.wav),
+      path: _audioPath!,
+    );
+
+    setState(() => _isRecording = true);
     _pulseController.repeat(reverse: true);
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
+  }
+
+  Future<void> _stopAndTranscribe() async {
+    if (!_isRecording) return;
+
+    setState(() => _isProcessing = true);
     _pulseController.stop();
     _pulseController.reset();
+    await _recorder.stop();
+
+    final String? path = _audioPath;
+    if (path == null || path.trim().isEmpty) {
+      debugPrint('[VOICE] Recording stopped but no output path was returned.');
+      setState(() {
+        _isProcessing = false;
+        _isRecording = false;
+      });
+      return;
+    }
+
+    final File recordedFile = File(path);
+    if (!await recordedFile.exists()) {
+      debugPrint('[VOICE] Recorded file does not exist at path: $path');
+      setState(() {
+        _isProcessing = false;
+        _isRecording = false;
+      });
+      return;
+    }
+
+    final int fileSize = await recordedFile.length();
+    debugPrint('[VOICE] Recorded file ready path=$path size_bytes=$fileSize');
+    if (fileSize <= 0) {
+      debugPrint('[VOICE] Recorded file is empty (0 bytes).');
+      setState(() {
+        _isProcessing = false;
+        _isRecording = false;
+      });
+      return;
+    }
+
+    String transcript = '';
+    try {
+      transcript = await widget.triageService.transcribeAudio(recordedFile);
+      debugPrint('[VOICE] Transcription received: "${transcript.trim()}"');
+    } catch (e) {
+      debugPrint('[VOICE] Transcription error: $e');
+      transcript = '';
+    }
+
+    if (!mounted) return;
     setState(() {
-      _isListening = false;
-      _capturedVoiceSteps.add(_currentStep);
+      _isRecording = false;
+      _isProcessing = false;
+      final String existing = _transcriptController.text.trim();
+      if (existing.isEmpty) {
+        _transcriptController.text = transcript;
+      } else if (transcript.isNotEmpty) {
+        _transcriptController.text = '$existing ${transcript.trim()}';
+      }
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool canConfirm =
+        !_isProcessing && _transcriptController.text.trim().isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          SACAStrings.tr(
+            context: context,
+            english: 'Tap to Speak',
+            warlpiri: 'Nyangkura-pinyi',
+          ),
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            color: widget.accentColor,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          widget.questionText,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            height: 1.2,
+            color: SACAColors.charcoal,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: ScaleTransition(
+            scale: _isRecording ? _pulseScale : const AlwaysStoppedAnimation(1),
+            child: GestureDetector(
+              onTap: _toggleRecording,
+              child: Container(
+                width: 128,
+                height: 128,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: SACAColors.deepClinicalGreen,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withOpacity(_isRecording ? 0.22 : 0.12),
+                      blurRadius: _isRecording ? 26 : 16,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 56,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            _isProcessing
+                ? SACAStrings.tr(
+                    context: context,
+                    english: 'Analyzing speech...',
+                    warlpiri: 'Yuwa kuja nyinami (analyzing)...',
+                  )
+                : _isRecording
+                    ? SACAStrings.tr(
+                        context: context,
+                        english: 'Recording... Tap to stop.',
+                        warlpiri: 'Recording... Tap-kurra stop.',
+                      )
+                    : (_permissionError
+                        ? 'Microphone permission denied.'
+                        : ''),
+            style: TextStyle(
+              color: SACAColors.secondaryText,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (_isProcessing) ...<Widget>[
+          const SizedBox(height: 10),
+          const Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextField(
+          controller: _transcriptController,
+          minLines: 4,
+          maxLines: 6,
+          enabled: !_isProcessing,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: SACAStrings.tr(
+              context: context,
+              english: 'Transcript will appear here...',
+              warlpiri: 'Transcript nyampu kuja...',
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: const BorderSide(color: SACAColors.subtleBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide:
+                  BorderSide(color: widget.accentColor, width: 2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (_transcriptController.text.trim().isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: canConfirm
+                  ? () => widget.onConfirmed(_transcriptController.text.trim())
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: widget.accentColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'Confirm & Continue',
+                  warlpiri: 'Confirm & Continue',
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class VoiceAudioCaptureScreen extends StatefulWidget {
+  const VoiceAudioCaptureScreen({
+    super.key,
+    required this.triageService,
+    required this.accentColor,
+  });
+
+  final TriageService triageService;
+  final Color accentColor;
+
+  @override
+  State<VoiceAudioCaptureScreen> createState() =>
+      _VoiceAudioCaptureScreenState();
+}
+
+class _VoiceAudioCaptureScreenState extends State<VoiceAudioCaptureScreen>
+    with SingleTickerProviderStateMixin {
+  final AudioRecorder _recorder = AudioRecorder();
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
+
+  _VoiceCaptureState _state = _VoiceCaptureState.idle;
+  String _transcriptPreview = '';
+  String _statusText = 'Tap the microphone to record your symptoms.';
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseScale = Tween<double>(
+      begin: 1.0,
+      end: 1.16,
+    ).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    final bool hasPermission = await _recorder.hasPermission(
+      request: true,
+    );
+    if (!hasPermission) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Microphone permission denied.')),
+      );
+      return;
+    }
+
+    final Directory tempDir = await getTemporaryDirectory();
+    final String filePath =
+        '${tempDir.path}/saca_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+
+    await _recorder.start(
+      RecordConfig(encoder: AudioEncoder.wav),
+      path: filePath,
+    );
+    setState(() {
+      _state = _VoiceCaptureState.recording;
+      _statusText = 'Recording... tap again to stop and analyze.';
+      _transcriptPreview = '';
+    });
+    _pulseController.repeat(reverse: true);
+  }
+
+  Future<void> _stopAndProcess() async {
+    if (_state != _VoiceCaptureState.recording) return;
+    setState(() {
+      _state = _VoiceCaptureState.processing;
+      _statusText = 'Transcribing and analyzing...';
+    });
+    _pulseController.stop();
+    _pulseController.reset();
+
+    final String? path = await _recorder.stop();
+    if (!mounted) return;
+    if (path == null || path.trim().isEmpty) {
+      setState(() {
+        _state = _VoiceCaptureState.idle;
+        _statusText = 'No audio captured. Try again.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No audio captured. Try again.')),
+      );
+      return;
+    }
+
+    final TriageSession dummySession = TriageSession(
+      chiefComplaint: '',
+      onset: '',
+      isWorsening: false,
+      medications: '',
+      allergies: '',
+      painLocation: <String>[],
+    );
+
+    try {
+      final TriageApiResult apiResult = await widget.triageService
+          .submitSession(dummySession, wavFile: File(path));
+
+      if (!mounted) return;
+
+      dummySession.chiefComplaint = apiResult.transcriptFinal;
+      setState(() {
+        _transcriptPreview = apiResult.transcriptFinal.trim();
+        _statusText = 'Transcript ready. Opening analysis...';
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ResultSummaryPage(
+            session: dummySession,
+            triageService: widget.triageService,
+            apiResult: apiResult,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _state = _VoiceCaptureState.idle;
+        _statusText = 'Speech analysis failed. Please try again.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Speech analysis failed: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool recording = _state == _VoiceCaptureState.recording;
+    final bool processing = _state == _VoiceCaptureState.processing;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: _BaseCard(
+          active: recording,
+          accentColor: widget.accentColor,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  SACAStrings.tr(
+                    context: context,
+                    english: 'Tap to Speak',
+                    warlpiri: 'Nyangkura-pinyi',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: widget.accentColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (processing) ...<Widget>[
+                  const SizedBox(height: 10),
+                  const SizedBox(
+                    height: 30,
+                    width: 30,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english: 'Analyzing speech...',
+                      warlpiri: 'Yuwa kuja nyinami (Analyzing)...',
+                    ),
+                    style: TextStyle(
+                      color: SACAColors.secondaryText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else
+                  GestureDetector(
+                    onTap: () async {
+                      if (_state == _VoiceCaptureState.idle) {
+                        await _startRecording();
+                      } else if (_state ==
+                          _VoiceCaptureState.recording) {
+                        await _stopAndProcess();
+                      }
+                    },
+                    child: ScaleTransition(
+                      scale: recording ? _pulseScale : const AlwaysStoppedAnimation(1.0),
+                      child: Container(
+                        width: 128,
+                        height: 128,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: SACAColors.deepClinicalGreen,
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color:
+                                  Colors.black.withOpacity(recording ? 0.22 : 0.12),
+                              blurRadius: recording ? 24 : 16,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          color: Colors.white,
+                          size: 56,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                if (recording)
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english: 'Recording... Tap to stop.',
+                      warlpiri: 'Recording... Tap-kurra stop.',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: SACAColors.secondaryText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 700),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.72),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: SACAColors.subtleBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'Transcript',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: SACAColors.secondaryText,
+                          letterSpacing: 0.25,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _transcriptPreview.trim().isNotEmpty
+                            ? _transcriptPreview
+                            : (processing
+                                  ? 'Waiting for final transcript...'
+                                  : 'Your final speech transcript will appear here.'),
+                        style: const TextStyle(
+                          color: SACAColors.charcoal,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _statusText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: SACAColors.secondaryText,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1055,49 +1645,136 @@ class WorkspaceConfig {
   final Color accentColor;
 }
 
-class ResultSummaryPage extends StatelessWidget {
-  const ResultSummaryPage({super.key, required this.session});
+class ResultSummaryPage extends StatefulWidget {
+  const ResultSummaryPage({
+    super.key,
+    required this.session,
+    required this.triageService,
+    this.apiResult,
+  });
 
   final TriageSession session;
+  final TriageService triageService;
+  final TriageApiResult? apiResult;
+
+  @override
+  State<ResultSummaryPage> createState() => _ResultSummaryPageState();
+}
+
+class _ResultSummaryPageState extends State<ResultSummaryPage> {
+  late final Future<TriageApiResult> _future;
+  Color _actionColor = const Color(0xFF1A5241);
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.apiResult != null
+        ? Future<TriageApiResult>.value(widget.apiResult!)
+        : widget.triageService.submitSession(widget.session);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final String painLocationText = session.painLocation.isEmpty
+    final String painLocationText = widget.session.painLocation.isEmpty
         ? 'None selected'
-        : session.painLocation.join(', ');
+        : widget.session.painLocation.join(', ');
 
     return Scaffold(
+      backgroundColor: SACAColors.pageBackground,
       appBar: AppBar(
+        backgroundColor: SACAColors.pageBackground,
+        elevation: 0,
         title: Text(
           SACAStrings.tr(
             context: context,
-            english: 'Result Summary',
-            warlpiri: 'Result Summary',
+            english: 'Clinical Dashboard',
+            warlpiri: 'Clinical Dashboard',
+          ),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.2,
           ),
         ),
+      ),
+      bottomNavigationBar: _ResultActionBar(
+        triageColor: _actionColor,
+        onAlertClinic: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Clinic alert workflow connected.')),
+          );
+        },
+        onReturnHome: () {
+          Navigator.of(
+            context,
+          ).popUntil((Route<dynamic> route) => route.isFirst);
+        },
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
+            constraints: const BoxConstraints(maxWidth: 980),
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: _BaseCard(
-                active: false,
-                accentColor: SACAColors.deepClinicalGreen,
-                child: ListView(
-                  children: <Widget>[
-                    _summaryRow('Chief complaint', session.chiefComplaint),
-                    _summaryRow('Onset', session.onset),
-                    _summaryRow(
-                      'Worsening',
-                      session.isWorsening ? 'Yes' : 'No',
-                    ),
-                    _summaryRow('Medications', session.medications),
-                    _summaryRow('Allergies', session.allergies),
-                    _summaryRow('Pain location', painLocationText),
-                  ],
-                ),
+              child: FutureBuilder<TriageApiResult>(
+                future: _future,
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<TriageApiResult> snapshot,
+                    ) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Failed to fetch triage result: ${snapshot.error}',
+                          ),
+                        );
+                      }
+                      final TriageApiResult result = snapshot.data!;
+                      final Color resolvedColor = _triageColor(
+                        result.triageLevel,
+                      );
+                      if (_actionColor != resolvedColor) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          setState(() => _actionColor = resolvedColor);
+                        });
+                      }
+                      return ListView(
+                        children: <Widget>[
+                          _TriageHeader(
+                            triageLevel: result.triageLevel,
+                            topCondition: result.topCondition,
+                          ),
+                          const SizedBox(height: 18),
+                          _PatientTranscriptBox(
+                            transcript: result.transcriptFinal,
+                          ),
+                          const SizedBox(height: 14),
+                          _ActionPlanBox(
+                            triageLevel: result.triageLevel,
+                            recommendation: result.recommendation,
+                          ),
+                          const SizedBox(height: 16),
+                          _SymptomWrap(
+                            symptoms: <String>[
+                              if (widget.session.chiefComplaint.isNotEmpty)
+                                widget.session.chiefComplaint,
+                              if (widget.session.onset.isNotEmpty)
+                                'Onset: ${widget.session.onset}',
+                              if (widget.session.medications.isNotEmpty)
+                                'Meds: ${widget.session.medications}',
+                              if (widget.session.allergies.isNotEmpty)
+                                'Allergies: ${widget.session.allergies}',
+                              if (painLocationText.isNotEmpty)
+                                'Pain: $painLocationText',
+                            ],
+                          ),
+                        ],
+                      );
+                    },
               ),
             ),
           ),
@@ -1105,26 +1782,140 @@ class ResultSummaryPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _summaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+class _TriageHeader extends StatefulWidget {
+  const _TriageHeader({required this.triageLevel, required this.topCondition});
+
+  final String triageLevel;
+  final String topCondition;
+
+  @override
+  State<_TriageHeader> createState() => _TriageHeaderState();
+}
+
+class _TriageHeaderState extends State<_TriageHeader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseScale = Tween<double>(begin: 0.95, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color triageColor = _triageColor(widget.triageLevel);
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        gradient: RadialGradient(
+          center: const Alignment(-0.7, -0.8),
+          radius: 1.3,
+          colors: <Color>[triageColor.withOpacity(0.28), Colors.white],
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: triageColor.withOpacity(0.16),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          ScaleTransition(
+            scale: _pulseScale,
+            child: Icon(Icons.favorite, color: triageColor, size: 28),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  widget.triageLevel.toUpperCase(),
+                  style: TextStyle(
+                    color: triageColor,
+                    fontSize: 34,
+                    letterSpacing: 1.1,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.topCondition,
+                  style: const TextStyle(
+                    color: SACAColors.charcoal,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientTranscriptBox extends StatelessWidget {
+  const _PatientTranscriptBox({required this.transcript});
+
+  final String transcript;
+
+  @override
+  Widget build(BuildContext context) {
+    final String value = transcript.trim();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: SACAColors.subtleBorder),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            label,
-            style: const TextStyle(
-              color: SACAColors.secondaryText,
+          const Text(
+            'Patient Transcript:',
+            style: TextStyle(
+              fontSize: 13,
               fontWeight: FontWeight.w700,
+              color: SACAColors.secondaryText,
+              letterSpacing: 0.25,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             value.isEmpty ? '-' : value,
             style: const TextStyle(
               color: SACAColors.charcoal,
-              fontSize: 16,
+              fontSize: 14,
+              height: 1.45,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1132,6 +1923,194 @@ class ResultSummaryPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ActionPlanBox extends StatelessWidget {
+  const _ActionPlanBox({
+    required this.triageLevel,
+    required this.recommendation,
+  });
+
+  final String triageLevel;
+  final String recommendation;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color tone = _triageColor(triageLevel);
+    final String resolvedRecommendation = recommendation.trim().isNotEmpty
+        ? recommendation
+        : _defaultRecommendationForLevel(triageLevel);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: tone.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: tone.withOpacity(0.35)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: tone.withOpacity(0.11),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Action Plan',
+            style: TextStyle(
+              color: tone,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            resolvedRecommendation,
+            style: const TextStyle(
+              color: SACAColors.charcoal,
+              fontSize: 15,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SymptomWrap extends StatelessWidget {
+  const _SymptomWrap({required this.symptoms});
+
+  final List<String> symptoms;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: SACAColors.subtleBorder.withOpacity(0.8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'Symptom Summary',
+            style: TextStyle(
+              color: SACAColors.secondaryText.withOpacity(0.8),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            symptoms.where((String s) => s.trim().isNotEmpty).join('  •  '),
+            style: TextStyle(
+              color: SACAColors.secondaryText.withOpacity(0.9),
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultActionBar extends StatelessWidget {
+  const _ResultActionBar({
+    required this.triageColor,
+    required this.onAlertClinic,
+    required this.onReturnHome,
+  });
+
+  final Color triageColor;
+  final VoidCallback onAlertClinic;
+  final VoidCallback onReturnHome;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onReturnHome,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: const BorderSide(color: SACAColors.deepClinicalGreen),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('NEW ASSESSMENT'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: triageColor,
+                foregroundColor: Colors.white,
+                elevation: 6,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: onAlertClinic,
+              child: const Text('ALERT CLINIC'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _triageColor(String level) {
+  final String normalized = level.toLowerCase();
+  if (normalized.contains('severe') ||
+      normalized.contains('high') ||
+      normalized.contains('critical')) {
+    return const Color(0xFF8B0000);
+  }
+  if (normalized.contains('moderate') || normalized.contains('medium')) {
+    return const Color(0xFFB8860B);
+  }
+  return const Color(0xFF1A5241);
+}
+
+String _defaultRecommendationForLevel(String level) {
+  final String normalized = level.toLowerCase();
+  if (normalized.contains('severe') ||
+      normalized.contains('high') ||
+      normalized.contains('critical')) {
+    return 'Evacuate immediately. Alert the nearest medical officer. '
+        'Monitor vitals every 5 minutes.';
+  }
+  if (normalized.contains('moderate') || normalized.contains('medium')) {
+    return 'Schedule clinic visit within 4 hours. Keep patient hydrated. '
+        'Monitor for worsening symptoms.';
+  }
+  return 'Routine check-up recommended. Provide home care instructions. '
+      'Follow up if symptoms persist.';
 }
 
 class LanguageCard extends StatelessWidget {
@@ -1313,11 +2292,7 @@ class ReportModeCard extends StatelessWidget {
 }
 
 class HoverScaleCard extends StatefulWidget {
-  const HoverScaleCard({
-    super.key,
-    required this.onTap,
-    required this.builder,
-  });
+  const HoverScaleCard({super.key, required this.onTap, required this.builder});
 
   final VoidCallback onTap;
   final Widget Function(bool active) builder;
@@ -1396,15 +2371,184 @@ class _BaseCard extends StatelessWidget {
 }
 
 class TriageService {
-  Future<void> sendToInference(String text, File? image) async {
-    // Backend integration hook for FastAPI triage inference.
+  TriageService({
+    this.baseUrl = 'http://127.0.0.1:8000',
+    this.authToken = 'dev-token',
+  });
+
+  final String baseUrl;
+  final String authToken;
+  String? _lastRecordedWavPath;
+
+  Future<String> transcribeAudio(File wavFile) async {
+    _lastRecordedWavPath = wavFile.path;
+    final List<String> candidatePaths = <String>[
+      '$baseUrl/v2/transcribe',
+      '$baseUrl/transcribe',
+      '$baseUrl/triage/transcribe',
+    ];
+
+    for (final String url in candidatePaths) {
+      try {
+        final int wavSize = await wavFile.length();
+        debugPrint(
+          '[VOICE][UPLOAD] Transcribe request url=$url file=${wavFile.path} size_bytes=$wavSize',
+        );
+        if (wavSize <= 0) {
+          throw Exception('Recorded file is empty (0 bytes).');
+        }
+        final Uri uri = Uri.parse(url);
+        final http.MultipartRequest req = http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $authToken';
+
+        req.files.add(
+          await http.MultipartFile.fromPath(
+            'audio_file',
+            wavFile.path,
+            filename: 'voice_note.wav',
+          ),
+        );
+
+        final http.StreamedResponse streamed = await req.send();
+        final String body = await streamed.stream.bytesToString();
+        debugPrint(
+          '[VOICE][UPLOAD] Transcribe response url=$url status=${streamed.statusCode} body=${body.length > 180 ? "${body.substring(0, 180)}..." : body}',
+        );
+        if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+          continue;
+        }
+
+        final dynamic decoded = jsonDecode(body);
+        if (decoded is! Map<String, dynamic>) continue;
+        final Map<String, dynamic> jsonMap = decoded;
+        final String transcript = (jsonMap['transcript_final'] ??
+                jsonMap['transcript_final_text'] ??
+                jsonMap['transcript'] ??
+                jsonMap['text'] ??
+                '')
+            .toString();
+        if (transcript.trim().isNotEmpty) return transcript;
+      } catch (e) {
+        debugPrint('[VOICE][UPLOAD] Transcribe request failed url=$url error=$e');
+        // Try the next endpoint.
+      }
+    }
+
+    throw Exception('Transcription failed (no valid response received).');
   }
 
-  Future<void> sendVoiceTranscript(String transcript) async {
-    // Backend integration hook for speech-to-triage payloads.
+  Future<TriageApiResult> submitSession(
+    TriageSession session, {
+    File? wavFile,
+  }) async {
+    final File? resolvedWavFile = wavFile ??
+        ((_lastRecordedWavPath != null) ? File(_lastRecordedWavPath!) : null);
+
+    final String narrative = [
+      session.chiefComplaint,
+      if (session.onset.isNotEmpty) 'Onset: ${session.onset}',
+      if (session.medications.isNotEmpty) 'Medications: ${session.medications}',
+      if (session.allergies.isNotEmpty) 'Allergies: ${session.allergies}',
+      'Worsening: ${session.isWorsening ? "yes" : "no"}',
+    ].where((String s) => s.trim().isNotEmpty).join('. ');
+
+    final List<String> urls = <String>[
+      '$baseUrl/triage/analyze-voice',
+      '$baseUrl/v2/triage/analyze-voice',
+    ];
+
+    for (final String url in urls) {
+      try {
+        final Uri uri = Uri.parse(url);
+        final http.MultipartRequest req = http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $authToken'
+          ..fields['text_input'] = narrative
+          ..fields['voice_transcript'] = session.chiefComplaint
+          ..fields['pain_locations'] = jsonEncode(session.painLocation);
+
+        if (resolvedWavFile != null && await resolvedWavFile.exists()) {
+          req.files.add(
+            await http.MultipartFile.fromPath(
+              'audio_file',
+              resolvedWavFile.path,
+              filename: 'voice_note.wav',
+            ),
+          );
+        } else {
+          req.files.add(
+            http.MultipartFile.fromBytes(
+              'audio_file',
+              _buildFallbackWavBytes(),
+              filename: 'fallback.wav',
+            ),
+          );
+        }
+
+        final http.StreamedResponse streamed = await req.send().timeout(
+          const Duration(seconds: 20),
+        );
+        final String body = await streamed.stream.bytesToString().timeout(
+          const Duration(seconds: 20),
+        );
+        debugPrint(
+          '[VOICE][UPLOAD] Analyze response url=$url status=${streamed.statusCode} body=${body.length > 220 ? "${body.substring(0, 220)}..." : body}',
+        );
+        if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+          continue;
+        }
+        final dynamic decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return TriageApiResult.fromJson(decoded);
+        }
+      } catch (e) {
+        debugPrint('[VOICE][UPLOAD] Analyze request failed url=$url error=$e');
+      }
+    }
+
+    final String fallbackLevel = session.isWorsening ? 'Moderate' : 'Mild';
+    return TriageApiResult(
+      triageLevel: fallbackLevel,
+      topCondition: session.chiefComplaint.isEmpty
+          ? 'General clinical review'
+          : 'Symptom review required',
+      transcriptFinal: session.chiefComplaint,
+      recommendation: _defaultRecommendationForLevel(fallbackLevel),
+    );
   }
 
-  Future<void> sendSelectionPayload(List<String> selectedCodes) async {
-    // Backend integration hook for coded picklist submissions.
+  Uint8List _buildFallbackWavBytes() {
+    const int sampleRate = 16000;
+    const int seconds = 1;
+    const int numChannels = 1;
+    const int bitsPerSample = 16;
+    final int byteRate = sampleRate * numChannels * (bitsPerSample ~/ 8);
+    final int blockAlign = numChannels * (bitsPerSample ~/ 8);
+    final int dataSize = sampleRate * seconds * blockAlign;
+    final ByteData header = ByteData(44);
+
+    void writeAscii(int offset, String s) {
+      for (int i = 0; i < s.length; i++) {
+        header.setUint8(offset + i, s.codeUnitAt(i));
+      }
+    }
+
+    writeAscii(0, 'RIFF');
+    header.setUint32(4, 36 + dataSize, Endian.little);
+    writeAscii(8, 'WAVE');
+    writeAscii(12, 'fmt ');
+    header.setUint32(16, 16, Endian.little); // PCM chunk size
+    header.setUint16(20, 1, Endian.little); // PCM format
+    header.setUint16(22, numChannels, Endian.little);
+    header.setUint32(24, sampleRate, Endian.little);
+    header.setUint32(28, byteRate, Endian.little);
+    header.setUint16(32, blockAlign, Endian.little);
+    header.setUint16(34, bitsPerSample, Endian.little);
+    writeAscii(36, 'data');
+    header.setUint32(40, dataSize, Endian.little);
+
+    final Uint8List out = Uint8List(44 + dataSize);
+    out.setRange(0, 44, header.buffer.asUint8List());
+    // Data bytes are already zero -> 1 second of silence.
+    return out;
   }
 }
