@@ -1,17 +1,13 @@
 import pandas as pd
-import numpy as np
 import joblib
 import re
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report, f1_score, recall_score, confusion_matrix
-
-from imblearn.over_sampling import SMOTE
+import sklearn.metrics
 
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
-
 
 # =========================
 # 1. Load cleaned dataset
@@ -104,18 +100,30 @@ print("Training set:", X_train.shape)
 print("Validation set:", X_val.shape)
 print("Test set:", X_test.shape)
 
+print("\n===== CLASS BALANCE CHECK =====")
+
+y_train_labels = label_encoder_severity.inverse_transform(y_train)
+training_class_counts = pd.Series(y_train_labels, name="Severity").value_counts()
+
+print("Training severity distribution before modelling:")
+print(training_class_counts)
+
+imbalance_ratio = training_class_counts.max() / training_class_counts.min()
+print(f"Imbalance ratio: {imbalance_ratio:.3f}")
+
+if imbalance_ratio <= 1.5:
+    print("Dataset is already balanced. SMOTE is not applied.")
+else:
+    print("Dataset is imbalanced. SMOTE may be considered only on the training set.")
 
 # =========================
-# 5. Apply SMOTE only on training data
+# 5. Train directly on split data (no SMOTE needed)
 # =========================
 
-smote = SMOTE(random_state=42)
-
-X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
-
-print("\n===== SMOTE APPLIED =====")
-print("Before SMOTE:", X_train.shape)
-print("After SMOTE:", X_train_smote.shape)
+# Dataset is already balanced (~33% each class), so no oversampling needed
+print("\n===== DATA IS BALANCED =====")
+print("No SMOTE required - using original training data")
+print("Training set:", X_train.shape)
 
 
 # =========================
@@ -126,20 +134,19 @@ print("\n===== TRAINING LIGHTGBM SEVERITY MODEL =====")
 
 lgbm_severity = LGBMClassifier(
     random_state=42,
-    class_weight="balanced",
     n_estimators=200,
     learning_rate=0.05,
     num_leaves=31
 )
 
-lgbm_severity.fit(X_train_smote, y_train_smote)
+lgbm_severity.fit(X_train, y_train)
 
 y_pred_lgbm = lgbm_severity.predict(X_test)
 
-lgbm_f1 = f1_score(y_test, y_pred_lgbm, average="weighted")
+lgbm_f1 = sklearn.metrics.f1_score(y_test, y_pred_lgbm, average="weighted")
 
 print("\n===== LIGHTGBM SEVERITY RESULTS =====")
-print(classification_report(
+print(sklearn.metrics.classification_report(
     y_test,
     y_pred_lgbm,
     target_names=label_encoder_severity.classes_,
@@ -160,18 +167,19 @@ cat_severity = CatBoostClassifier(
     depth=6,
     loss_function="MultiClass",
     random_seed=42,
+    allow_writing_files=False,
     verbose=0
 )
 
-cat_severity.fit(X_train_smote, y_train_smote)
+cat_severity.fit(X_train, y_train)
 
 y_pred_cat = cat_severity.predict(X_test)
 y_pred_cat = y_pred_cat.flatten()
 
-cat_f1 = f1_score(y_test, y_pred_cat, average="weighted")
+cat_f1 = sklearn.metrics.f1_score(y_test, y_pred_cat, average="weighted")
 
 print("\n===== CATBOOST SEVERITY RESULTS =====")
-print(classification_report(
+print(sklearn.metrics.classification_report(
     y_test,
     y_pred_cat,
     target_names=label_encoder_severity.classes_,
@@ -193,7 +201,7 @@ severe_index = [
     if label.lower() == "severe"
 ][0]
 
-lgbm_severe_recall = recall_score(
+lgbm_severe_recall = sklearn.metrics.recall_score(
     y_test,
     y_pred_lgbm,
     labels=[severe_index],
@@ -201,7 +209,7 @@ lgbm_severe_recall = recall_score(
     zero_division=0
 )
 
-cat_severe_recall = recall_score(
+cat_severe_recall = sklearn.metrics.recall_score(
     y_test,
     y_pred_cat,
     labels=[severe_index],
