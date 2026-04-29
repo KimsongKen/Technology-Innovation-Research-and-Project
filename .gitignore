@@ -2,3 +2,5 @@
 # Ignore trained model files
 models/*.pkl
 catboost_info/
+
+models/
