@@ -1,34 +1,31 @@
 # SACA Flutter App
 
-Smart Adaptive Clinical Assistant (SACA) is an offline-first Flutter triage prototype designed for use in remote community settings, with bilingual support for English and Warlpiri.
+Smart Adaptive Clinical Assistant (SACA) is a Flutter triage prototype for remote clinical workflows, with bilingual support for English and Warlpiri.
 
 Repository path: [Technology-Innovation-Research-and-Project / saca_app_flutter](https://github.com/KimsongKen/Technology-Innovation-Research-and-Project/tree/main/saca_app_flutter)
 
-## Project Goal
+## What This App Does
 
-SACA helps health workers capture symptoms quickly through:
-- Voice-guided capture with transcript confirmation
-- Typed clinical input
-- Visual body-area selection
+- Capture patient input through:
+  - Voice (microphone recording + transcript review)
+  - Text typing
+  - Visual body-area selection
+- Run triage analysis through a FastAPI backend
+- Present a clean, action-oriented result:
+  - Triage level
+  - Top condition
+  - Recommendation
 
-The app then generates a focused, action-oriented triage summary:
-- Single triage level
-- Most likely top condition
-- Recommendation / action plan
+## Current Feature Set
 
-## Core Features
+- Global language mode (English/Warlpiri)
+- Multi-step clinical questionnaire
+- Voice transcript append + editable verification
+- Real-time permission UX for microphone access
+- Result dashboard with `ALERT CLINIC` and `NEW ASSESSMENT`
+- Desktop-friendly hover interactions and modern card UI
 
-- Bilingual UI language selection (English / Warlpiri)
-- Multi-step clinical questionnaire flow
-- Voice recording with backend transcription integration
-- Transcript append-and-edit before confirmation
-- Interactive pain-location body grid
-- Minimalist clinical result dashboard
-- Windows-friendly desktop UX with hover and card interactions
-
-## Current Structure
-
-The app has been cleaned and modularized into:
+## Project Structure
 
 ```text
 lib/
@@ -50,84 +47,116 @@ lib/
 ## Tech Stack
 
 - Flutter (Material 3)
-- Dart SDK: `^3.11.5`
-- HTTP client: `http`
-- Audio recording: `record`
-- Temp file paths: `path_provider`
+- Dart SDK `^3.11.5`
+- `http` for backend requests
+- `record` for voice capture
+- `path_provider` for temp audio files
+- `app_settings` for “open system settings” UX
 
-## Run Locally (Windows)
+## Android Readiness
 
-From project root:
+Android support includes:
+- `INTERNET` + `RECORD_AUDIO` permissions
+- Cleartext HTTP enabled for local-network backend testing
+- `network_security_config.xml` configured for local HTTP use
+- `minSdk` enforced to at least 23
+
+### Important (Local Backend on Emulator)
+
+If FastAPI runs on your computer:
+- Android emulator should use `http://10.0.2.2:8000`
+- Real Android tablet should use your LAN IP, e.g. `http://192.168.x.x:8000`
+- Do not use `127.0.0.1` on Android unless backend runs on the Android device itself
+
+## Run the App
+
+### 1) Install dependencies
 
 ```powershell
 flutter pub get
+```
+
+### 2) Run on Windows
+
+```powershell
 flutter run -d windows
 ```
 
-## If Windows Symlink Error Appears
-
-If you see an error similar to:
-`PathExistsException ... .plugin_symlinks ... errno = 183`
-
-run:
+### 3) Run on Android emulator/device
 
 ```powershell
-if (Test-Path "windows\flutter\ephemeral\.plugin_symlinks") { Remove-Item "windows\flutter\ephemeral\.plugin_symlinks" -Recurse -Force }
+flutter devices
+flutter run -d emulator-5554
+```
+
+Or use your physical device ID from `flutter devices`.
+
+### 4) Build APK (debug)
+
+```powershell
+flutter build apk --debug
+```
+
+Output:
+`build/app/outputs/flutter-apk/app-debug.apk`
+
+## FastAPI Integration Contract
+
+`TriageService` currently calls:
+- Transcribe endpoints (fallback order):
+  - `/v2/transcribe`
+  - `/transcribe`
+  - `/triage/transcribe`
+- Analyze endpoints (fallback order):
+  - `/triage/analyze-voice`
+  - `/v2/triage/analyze-voice`
+
+Expected response fields:
+- `triage_level`
+- `top_condition` or `predicted_disease`
+- `transcript_final` / `transcript_final_text` / `transcript`
+- `recommendation`
+
+## Troubleshooting
+
+### Windows build fails with plugin symlink/NuGet errors
+
+```powershell
 flutter clean
 flutter pub get
 flutter run -d windows
 ```
 
-This clears stale plugin symlinks and rebuilds cleanly.
+### Android microphone denied
 
-## Triage API Integration
+The app now:
+- prompts permission through `record`
+- shows retry guidance
+- provides “Open app settings” path for blocked permission
 
-`TriageService` currently supports:
-- `transcribeAudio(File wavFile)`
-- `submitSession(TriageSession session, {File? wavFile})`
+### Zero-byte recording
 
-### Transcription endpoint fallback order
-- `/v2/transcribe`
-- `/transcribe`
-- `/triage/transcribe`
-
-### Analyze endpoint fallback order
-- `/triage/analyze-voice`
-- `/v2/triage/analyze-voice`
-
-### Expected response fields
-
-The app reads these keys from backend JSON where available:
-- `triage_level`
-- `top_condition` (or `predicted_disease`)
-- `transcript_final` / `transcript_final_text` / `transcript`
-- `recommendation`
-
-## UX Notes
-
-- Organic clinical styling with rounded cards
-- Hover scale interaction on desktop
-- Progress-aware questionnaire flow
-- Result screen designed for immediate action:
-  - `ALERT CLINIC`
-  - `NEW ASSESSMENT`
+If recording returns `0 bytes`, the app fails fast and shows a user-visible error.
 
 ## Quality Status
 
-- Codebase cleaned from dead code and unused dependencies
-- Refactored into models/services/screens/widgets
-- `flutter analyze` passes with no issues
+- Refactored and cleaned codebase
+- Android manifest + network config updated for local testing
+- `flutter analyze` passing
+- Debug APK build verified
 
-## Development Commands
+## Useful Commands
 
 ```powershell
 flutter pub get
 flutter analyze
 flutter test
 flutter run -d windows
+flutter run -d emulator-5554
+flutter build apk --debug
 ```
 
 ## References
 
-- Project repo directory: [saca_app_flutter](https://github.com/KimsongKen/Technology-Innovation-Research-and-Project/tree/main/saca_app_flutter)
-- Flutter documentation: [docs.flutter.dev](https://docs.flutter.dev/)
+- Project folder: [saca_app_flutter](https://github.com/KimsongKen/Technology-Innovation-Research-and-Project/tree/main/saca_app_flutter)
+- Flutter docs: [docs.flutter.dev](https://docs.flutter.dev/)

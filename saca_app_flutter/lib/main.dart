@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';

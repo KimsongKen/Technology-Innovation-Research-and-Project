@@ -2,21 +2,33 @@ part of '../main.dart';
 
 class TriageService {
   TriageService({
-    this.baseUrl = 'http://127.0.0.1:8000',
+    String? baseUrl,
     this.authToken = 'dev-token',
-  });
+  }) : baseUrl = baseUrl ?? _resolveDefaultBaseUrl();
 
   final String baseUrl;
   final String authToken;
   String? _lastRecordedWavPath;
 
+  static String _resolveDefaultBaseUrl() {
+    const String configured = String.fromEnvironment('SACA_API_BASE_URL');
+    if (configured.isNotEmpty) {
+      return configured;
+    }
+    if (Platform.isAndroid) {
+      // Android emulator localhost maps to itself; host machine is 10.0.2.2.
+      return 'http://10.0.2.2:8000';
+    }
+    return 'http://127.0.0.1:8000';
+  }
+
   Future<String> transcribeAudio(File wavFile) async {
     _lastRecordedWavPath = wavFile.path;
     final List<String> candidatePaths = <String>[
-      '$baseUrl/v2/transcribe',
-      '$baseUrl/transcribe',
-      '$baseUrl/triage/transcribe',
+      '$baseUrl/triage/analyze-voice',
+      '$baseUrl/v2/triage/analyze-voice',
     ];
+    String? lastError;
 
     for (final String url in candidatePaths) {
       try {
@@ -24,6 +36,11 @@ class TriageService {
         if (wavSize <= 0) {
           throw Exception('Recorded file is empty (0 bytes).');
         }
+        final bool exists = await wavFile.exists();
+        debugPrint(
+          '[SACA][UPLOAD] transcribe path=${wavFile.path} exists=$exists '
+          'size_bytes=$wavSize url=$url',
+        );
         final Uri uri = Uri.parse(url);
         final http.MultipartRequest req = http.MultipartRequest('POST', uri)
           ..headers['Authorization'] = 'Bearer $authToken';
@@ -39,25 +56,22 @@ class TriageService {
         final http.StreamedResponse streamed = await req.send();
         final String body = await streamed.stream.bytesToString();
         if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+          lastError = 'HTTP ${streamed.statusCode}: $body';
           continue;
         }
 
         final dynamic decoded = jsonDecode(body);
         if (decoded is! Map<String, dynamic>) continue;
         final Map<String, dynamic> jsonMap = decoded;
-        final String transcript = (jsonMap['transcript_final'] ??
-                jsonMap['transcript_final_text'] ??
-                jsonMap['transcript'] ??
-                jsonMap['text'] ??
-                '')
-            .toString();
+        final String transcript = (jsonMap['transcript'] ?? '').toString();
         if (transcript.trim().isNotEmpty) return transcript;
       } catch (_) {
+        lastError = 'Request exception while contacting $url';
         continue;
       }
     }
 
-    throw Exception('Transcription failed (no valid response received).');
+    throw Exception(lastError ?? 'Transcription failed (no valid response received).');
   }
 
   Future<TriageApiResult> submitSession(
@@ -90,6 +104,11 @@ class TriageService {
           ..fields['pain_locations'] = jsonEncode(session.painLocation);
 
         if (resolvedWavFile != null && await resolvedWavFile.exists()) {
+          final int audioBytes = await resolvedWavFile.length();
+          debugPrint(
+            '[SACA][UPLOAD] analyze path=${resolvedWavFile.path} exists=true '
+            'size_bytes=$audioBytes url=$url',
+          );
           req.files.add(
             await http.MultipartFile.fromPath(
               'audio_file',
@@ -98,6 +117,7 @@ class TriageService {
             ),
           );
         } else {
+          debugPrint('[SACA][UPLOAD] analyze using fallback WAV bytes url=$url');
           req.files.add(
             http.MultipartFile.fromBytes(
               'audio_file',

@@ -24,45 +24,54 @@ class LanguageCard extends StatelessWidget {
         return _BaseCard(
           active: active,
           accentColor: accentColor,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accentColor.withValues(alpha: 0.16),
-                ),
-                child: Icon(icon, color: accentColor, size: 32),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: SACAColors.charcoal,
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: accentColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(99),
-                  color: accentColor,
-                ),
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool compact = constraints.maxHeight < 220;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Container(
+                    width: compact ? 48 : 60,
+                    height: compact ? 48 : 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: accentColor.withValues(alpha: 0.16),
+                    ),
+                    child: Icon(icon, color: accentColor, size: compact ? 26 : 32),
+                  ),
+                  SizedBox(height: compact ? 10 : 18),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: SACAColors.charcoal,
+                      fontSize: compact ? 24 : 34,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    maxLines: compact ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: accentColor,
+                      fontSize: compact ? 14 : 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(99),
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -84,73 +93,82 @@ class ReportModeCard extends StatelessWidget {
         return _BaseCard(
           active: active,
           accentColor: data.accentColor,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (data.recommended)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: data.accentColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    SACAStrings.tr(
-                      context: context,
-                      english: 'Recommended',
-                      warlpiri: 'Recommended',
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool compact = constraints.maxHeight < 220;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (data.recommended)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: data.accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        SACAStrings.tr(
+                          context: context,
+                          english: 'Recommended',
+                          warlpiri: 'Recommended',
+                        ),
+                        style: TextStyle(
+                          color: data.accentColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
+                  if (data.recommended) SizedBox(height: compact ? 8 : 12),
+                  Hero(
+                    tag: data.heroTag,
+                    child: Container(
+                      width: compact ? 46 : 58,
+                      height: compact ? 46 : 58,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: data.accentColor.withValues(alpha: 0.14),
+                      ),
+                      child: Icon(data.icon, color: data.accentColor, size: compact ? 24 : 31),
+                    ),
+                  ),
+                  SizedBox(height: compact ? 10 : 16),
+                  Text(
+                    data.title,
+                    maxLines: compact ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: data.accentColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                      color: SACAColors.charcoal,
+                      fontSize: compact ? 20 : 25,
+                      height: 1.15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                ),
-              if (data.recommended) const SizedBox(height: 12),
-              Hero(
-                tag: data.heroTag,
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: data.accentColor.withValues(alpha: 0.14),
+                  SizedBox(height: compact ? 6 : 10),
+                  Text(
+                    data.description,
+                    maxLines: compact ? 2 : 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: SACAColors.secondaryText,
+                      fontSize: compact ? 13 : 15,
+                      height: 1.35,
+                    ),
                   ),
-                  child: Icon(data.icon, color: data.accentColor, size: 31),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                data.title,
-                style: const TextStyle(
-                  color: SACAColors.charcoal,
-                  fontSize: 25,
-                  height: 1.15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                data.description,
-                style: const TextStyle(
-                  color: SACAColors.secondaryText,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                height: 3,
-                decoration: BoxDecoration(
-                  color: data.accentColor,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ],
+                  const Spacer(),
+                  Container(
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: data.accentColor,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },

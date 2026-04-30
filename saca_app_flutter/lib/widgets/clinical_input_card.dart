@@ -29,7 +29,9 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
   late final TextEditingController _transcriptController;
   bool _isRecording = false;
   bool _isProcessing = false;
-  bool _permissionError = false;
+  bool _permissionDenied = false;
+  bool _permissionSuggestSettings = false;
+  int _micDenialCount = 0;
 
   String? _audioPath;
 
@@ -64,6 +66,83 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
     super.dispose();
   }
 
+  Future<void> _showOpenSettingsDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Microphone blocked'),
+          content: const Text(
+            'Microphone access is turned off for this app. Open Settings, '
+            'find SACA, and enable the microphone permission.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await AppSettings.openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _ensureMicrophonePermission() async {
+    final bool granted = await _recorder.hasPermission(request: true);
+    if (granted) {
+      setState(() {
+        _permissionDenied = false;
+        _permissionSuggestSettings = false;
+        _micDenialCount = 0;
+      });
+      return true;
+    }
+
+    _micDenialCount++;
+    final bool suggestStrong = _micDenialCount >= 2;
+    setState(() {
+      _permissionDenied = true;
+      _permissionSuggestSettings = suggestStrong;
+    });
+
+    if (!mounted) return false;
+
+    if (suggestStrong) {
+      await _showOpenSettingsDialog();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SACAStrings.tr(
+              context: context,
+              english:
+                  'Microphone is required to record. Tap Allow if asked, or open Settings to enable the mic for this app.',
+              warlpiri:
+                  'Microphone marda record-ku. Allow manu Settings-ku mic on.',
+            ),
+          ),
+          action: SnackBarAction(
+            label: SACAStrings.tr(
+              context: context,
+              english: 'Settings',
+              warlpiri: 'Settings',
+            ),
+            onPressed: AppSettings.openAppSettings,
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
   Future<void> _toggleRecording() async {
     if (_isProcessing) return;
 
@@ -72,12 +151,8 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
       return;
     }
 
-    final bool hasPermission = await _recorder.hasPermission(request: true);
-    if (!hasPermission) {
-      setState(() => _permissionError = true);
-      return;
-    }
-    setState(() => _permissionError = false);
+    final bool ok = await _ensureMicrophonePermission();
+    if (!ok) return;
 
     final Directory tempDir = await getTemporaryDirectory();
     final String filePath =
@@ -91,6 +166,23 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
 
     setState(() => _isRecording = true);
     _pulseController.repeat(reverse: true);
+  }
+
+  void _showZeroByteError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          SACAStrings.tr(
+            context: context,
+            english:
+                'No audio was captured (0 bytes). Tap the mic, speak clearly, then tap again to stop.',
+            warlpiri:
+                'Wangka nyampu capture (0 bytes). Tap mic, speak, tap stop.',
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _stopAndTranscribe() async {
@@ -107,15 +199,42 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
         _isProcessing = false;
         _isRecording = false;
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              SACAStrings.tr(
+                context: context,
+                english: 'Recording did not produce a file path. Please try again.',
+                warlpiri: 'Recording path nyampu. Try again.',
+              ),
+            ),
+          ),
+        );
+      }
       return;
     }
 
     final File recordedFile = File(path);
-    if (!await recordedFile.exists()) {
+    final bool exists = await recordedFile.exists();
+    if (!exists) {
       setState(() {
         _isProcessing = false;
         _isRecording = false;
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              SACAStrings.tr(
+                context: context,
+                english: 'Recording file was not found. Please try again.',
+                warlpiri: 'Recording file nyampu. Try again.',
+              ),
+            ),
+          ),
+        );
+      }
       return;
     }
 
@@ -125,14 +244,28 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
         _isProcessing = false;
         _isRecording = false;
       });
+      _showZeroByteError();
       return;
     }
 
     String transcript = '';
     try {
       transcript = await widget.triageService.transcribeAudio(recordedFile);
-    } catch (_) {
+    } catch (e) {
       transcript = '';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              SACAStrings.tr(
+                context: context,
+                english: 'Transcription failed: $e',
+                warlpiri: 'Transcription fail: $e',
+              ),
+            ),
+          ),
+        );
+      }
     }
 
     if (!mounted) return;
@@ -146,6 +279,25 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
         _transcriptController.text = '$existing ${transcript.trim()}';
       }
     });
+  }
+
+  String _permissionHintText() {
+    if (_permissionSuggestSettings) {
+      return SACAStrings.tr(
+        context: context,
+        english:
+            'Microphone still blocked. Tap “Open app settings” below or enable the mic in Android Settings → Apps → SACA → Permissions.',
+        warlpiri: 'Microphone block. Settings → Apps → SACA → Permissions.',
+      );
+    }
+    if (_permissionDenied) {
+      return SACAStrings.tr(
+        context: context,
+        english: 'Microphone permission was denied. Tap the mic again to retry.',
+        warlpiri: 'Microphone deny. Tap mic again.',
+      );
+    }
+    return '';
   }
 
   @override
@@ -222,7 +374,7 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
                         english: 'Recording... Tap to stop.',
                         warlpiri: 'Recording... Tap-kurra stop.',
                       )
-                    : (_permissionError ? 'Microphone permission denied.' : ''),
+                    : _permissionHintText(),
             style: const TextStyle(
               color: SACAColors.secondaryText,
               fontWeight: FontWeight.w600,
@@ -231,6 +383,23 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
             textAlign: TextAlign.center,
           ),
         ),
+        if (_permissionSuggestSettings && !_isRecording && !_isProcessing) ...<Widget>[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: AppSettings.openAppSettings,
+              icon: const Icon(Icons.settings_outlined),
+              label: Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'Open app settings',
+                  warlpiri: 'Open app settings',
+                ),
+              ),
+            ),
+          ),
+        ],
         if (_isProcessing) ...<Widget>[
           const SizedBox(height: 10),
           const Center(

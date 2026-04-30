@@ -37,6 +37,9 @@ dependencies:
   http: ^1.2.2
   record: ^6.2.0
   path_provider: ^2.1.5
+  # Use app_settings (not permission_handler): permission_handler_windows pulls
+  # NuGet/CppWinRT and breaks `flutter run -d windows` without a full NuGet setup.
+  app_settings: ^6.1.1
 
 dev_dependencies:
   flutter_test:
