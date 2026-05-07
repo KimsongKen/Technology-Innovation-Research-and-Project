@@ -46,7 +46,7 @@ class LanguageCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: SACAColors.charcoal,
-                      fontSize: compact ? 24 : 34,
+                      fontSize: compact ? 21 : 28,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -57,7 +57,7 @@ class LanguageCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: accentColor,
-                      fontSize: compact ? 14 : 18,
+                      fontSize: compact ? 13 : 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -142,7 +142,7 @@ class ReportModeCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: SACAColors.charcoal,
-                      fontSize: compact ? 20 : 25,
+                      fontSize: compact ? 18 : 21,
                       height: 1.15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -154,7 +154,7 @@ class ReportModeCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: SACAColors.secondaryText,
-                      fontSize: compact ? 13 : 15,
+                      fontSize: compact ? 12 : 13,
                       height: 1.35,
                     ),
                   ),

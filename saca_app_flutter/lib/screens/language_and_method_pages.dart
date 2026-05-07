@@ -21,7 +21,7 @@ class LanguageSelectionPage extends StatelessWidget {
                     'Smart Adaptive Clinical Assistant',
                     style: TextStyle(
                       color: SACAColors.charcoal,
-                      fontSize: 40,
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
                       height: 1.05,
                     ),
@@ -31,7 +31,7 @@ class LanguageSelectionPage extends StatelessWidget {
                     'Choose language / Pina yimi',
                     style: TextStyle(
                       color: SACAColors.secondaryText,
-                      fontSize: 17,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 26),
@@ -168,7 +168,7 @@ class ReportingMethodPage extends StatelessWidget {
                   const Text(
                     'Choose How to Report',
                     style: TextStyle(
-                      fontSize: 34,
+                      fontSize: 28,
                       fontWeight: FontWeight.w800,
                       color: SACAColors.charcoal,
                     ),
@@ -181,7 +181,7 @@ class ReportingMethodPage extends StatelessWidget {
                       warlpiri: 'Clinical input nyampu pina',
                     ),
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: SACAColors.secondaryText,
                     ),
                   ),

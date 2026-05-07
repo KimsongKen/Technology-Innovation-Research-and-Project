@@ -8,7 +8,7 @@ class TriageService {
 
   final String baseUrl;
   final String authToken;
-  String? _lastRecordedWavPath;
+  String? _lastRawTranscript;
 
   static String _resolveDefaultBaseUrl() {
     const String configured = String.fromEnvironment('SACA_API_BASE_URL');
@@ -22,16 +22,16 @@ class TriageService {
     return 'http://127.0.0.1:8000';
   }
 
-  Future<String> transcribeAudio(File wavFile) async {
-    _lastRecordedWavPath = wavFile.path;
+  Future<String> transcribeAudio(File wavFile, {String languageCode = 'en'}) async {
     final List<String> candidatePaths = <String>[
-      '$baseUrl/triage/analyze-voice',
-      '$baseUrl/v2/triage/analyze-voice',
+      '$baseUrl/triage/transcribe',
     ];
     String? lastError;
+    final List<String> attempted = <String>[];
 
     for (final String url in candidatePaths) {
       try {
+        attempted.add(url);
         final int wavSize = await wavFile.length();
         if (wavSize <= 0) {
           throw Exception('Recorded file is empty (0 bytes).');
@@ -52,93 +52,111 @@ class TriageService {
             filename: 'voice_note.wav',
           ),
         );
+        req.fields['language'] = languageCode;
 
         final http.StreamedResponse streamed = await req.send();
         final String body = await streamed.stream.bytesToString();
         if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
           lastError = 'HTTP ${streamed.statusCode}: $body';
-          continue;
+          // Route not found/method mismatch -> try next compatibility endpoint.
+          if (streamed.statusCode == 404 || streamed.statusCode == 405) {
+            continue;
+          }
+          // Any other status (notably 422 with useful detail) is a real failure.
+          // Stop trying additional endpoints and surface this response upstream.
+          break;
         }
 
         final dynamic decoded = jsonDecode(body);
         if (decoded is! Map<String, dynamic>) continue;
         final Map<String, dynamic> jsonMap = decoded;
-        final String transcript = (jsonMap['transcript'] ?? '').toString();
-        if (transcript.trim().isNotEmpty) return transcript;
-      } catch (_) {
-        lastError = 'Request exception while contacting $url';
+        final String transcript = (
+          jsonMap['transcript'] ??
+          jsonMap['transcript_final'] ??
+          jsonMap['transcript_final_text'] ??
+          ''
+        )
+            .toString();
+        if (transcript.trim().isNotEmpty) {
+          _lastRawTranscript = transcript.trim();
+          return transcript;
+        }
+      } catch (e) {
+        lastError = 'Request exception while contacting $url: $e';
         continue;
       }
     }
 
-    throw Exception(lastError ?? 'Transcription failed (no valid response received).');
+    throw Exception(
+      lastError ??
+          'Transcription failed. Endpoints not available or returned no transcript. '
+              'Tried: ${attempted.join(", ")}',
+    );
   }
 
   Future<TriageApiResult> submitSession(
     TriageSession session, {
-    File? wavFile,
+    required AppLanguage language,
   }) async {
-    final File? resolvedWavFile =
-        wavFile ?? ((_lastRecordedWavPath != null) ? File(_lastRecordedWavPath!) : null);
 
+    final int painScore = session.painScore.clamp(1, 10);
     final String narrative = [
       session.chiefComplaint,
+      'Pain intensity (1–10 scale, 10 = unbearable): $painScore',
       if (session.onset.isNotEmpty) 'Onset: ${session.onset}',
       if (session.medications.isNotEmpty) 'Medications: ${session.medications}',
       if (session.allergies.isNotEmpty) 'Allergies: ${session.allergies}',
       'Worsening: ${session.isWorsening ? "yes" : "no"}',
+      if (session.additionalConcerns.trim().isNotEmpty)
+        'Other symptoms or requests: ${session.additionalConcerns.trim()}',
     ].where((String s) => s.trim().isNotEmpty).join('. ');
 
-    final List<String> urls = <String>[
-      '$baseUrl/triage/analyze-voice',
-      '$baseUrl/v2/triage/analyze-voice',
-    ];
+    final String verifiedCore = session.chiefComplaint.trim();
+    final String enrichedVerified = [
+      verifiedCore,
+      'Pain intensity (1–10, 10 = unbearable pain): $painScore',
+      if (session.additionalConcerns.trim().isNotEmpty)
+        'Other symptoms or concerns: ${session.additionalConcerns.trim()}',
+    ].where((String s) => s.trim().isNotEmpty).join('. ');
+    final String verifiedTranscript =
+        enrichedVerified.isEmpty ? verifiedCore : enrichedVerified;
 
-    for (final String url in urls) {
+    final String rawTranscript = (_lastRawTranscript ?? verifiedCore).trim();
+    final String languageCode = language == AppLanguage.warlpiri ? 'wbp' : 'en';
+
+    final List<String> predictUrls = <String>['$baseUrl/triage/predict'];
+
+    for (final String url in predictUrls) {
       try {
         final Uri uri = Uri.parse(url);
-        final http.MultipartRequest req = http.MultipartRequest('POST', uri)
-          ..headers['Authorization'] = 'Bearer $authToken'
-          ..fields['text_input'] = narrative
-          ..fields['voice_transcript'] = session.chiefComplaint
-          ..fields['pain_locations'] = jsonEncode(session.painLocation);
-
-        if (resolvedWavFile != null && await resolvedWavFile.exists()) {
-          final int audioBytes = await resolvedWavFile.length();
-          debugPrint(
-            '[SACA][UPLOAD] analyze path=${resolvedWavFile.path} exists=true '
-            'size_bytes=$audioBytes url=$url',
-          );
-          req.files.add(
-            await http.MultipartFile.fromPath(
-              'audio_file',
-              resolvedWavFile.path,
-              filename: 'voice_note.wav',
-            ),
-          );
-        } else {
-          debugPrint('[SACA][UPLOAD] analyze using fallback WAV bytes url=$url');
-          req.files.add(
-            http.MultipartFile.fromBytes(
-              'audio_file',
-              _buildFallbackWavBytes(),
-              filename: 'fallback.wav',
-            ),
-          );
-        }
-
-        final http.StreamedResponse streamed = await req.send().timeout(
-          const Duration(seconds: 20),
-        );
-        final String body = await streamed.stream.bytesToString().timeout(
-          const Duration(seconds: 20),
-        );
-        if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
+        final Map<String, dynamic> payload = <String, dynamic>{
+          'raw_transcript': rawTranscript.isEmpty ? narrative : rawTranscript,
+          'verified_transcript':
+              verifiedTranscript.isEmpty ? narrative : verifiedTranscript,
+          'language': languageCode,
+        };
+        final http.Response response = await http
+            .post(
+              uri,
+              headers: <String, String>{
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode(payload),
+            )
+            .timeout(const Duration(seconds: 20));
+        if (response.statusCode < 200 || response.statusCode >= 300) {
           continue;
         }
-        final dynamic decoded = jsonDecode(body);
+        final dynamic decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-          return TriageApiResult.fromJson(decoded);
+          final Map<String, dynamic> merged = <String, dynamic>{
+            ...decoded,
+            if ((decoded['transcript_final'] ?? '').toString().isEmpty)
+              'transcript_final':
+                  verifiedTranscript.isEmpty ? narrative : verifiedTranscript,
+            'language': languageCode,
+          };
+          return TriageApiResult.fromJson(merged);
         }
       } catch (_) {
         continue;
@@ -146,47 +164,18 @@ class TriageService {
     }
 
     final String fallbackLevel = session.isWorsening ? 'Moderate' : 'Mild';
+    final String transcriptOut =
+        verifiedTranscript.isNotEmpty ? verifiedTranscript : verifiedCore;
     return TriageApiResult(
       triageLevel: fallbackLevel,
       topCondition:
           session.chiefComplaint.isEmpty ? 'General clinical review' : 'Symptom review required',
-      transcriptFinal: session.chiefComplaint,
+      transcriptFinal: transcriptOut.isNotEmpty ? transcriptOut : narrative,
       recommendation: _defaultRecommendationForLevel(fallbackLevel),
+      confidence: 0.0,
+      top3Symptoms: const <String>[],
+      escalationTriggered: false,
+      languageCode: languageCode,
     );
-  }
-
-  Uint8List _buildFallbackWavBytes() {
-    const int sampleRate = 16000;
-    const int seconds = 1;
-    const int numChannels = 1;
-    const int bitsPerSample = 16;
-    final int byteRate = sampleRate * numChannels * (bitsPerSample ~/ 8);
-    final int blockAlign = numChannels * (bitsPerSample ~/ 8);
-    final int dataSize = sampleRate * seconds * blockAlign;
-    final ByteData header = ByteData(44);
-
-    void writeAscii(int offset, String s) {
-      for (int i = 0; i < s.length; i++) {
-        header.setUint8(offset + i, s.codeUnitAt(i));
-      }
-    }
-
-    writeAscii(0, 'RIFF');
-    header.setUint32(4, 36 + dataSize, Endian.little);
-    writeAscii(8, 'WAVE');
-    writeAscii(12, 'fmt ');
-    header.setUint32(16, 16, Endian.little);
-    header.setUint16(20, 1, Endian.little);
-    header.setUint16(22, numChannels, Endian.little);
-    header.setUint32(24, sampleRate, Endian.little);
-    header.setUint32(28, byteRate, Endian.little);
-    header.setUint16(32, blockAlign, Endian.little);
-    header.setUint16(34, bitsPerSample, Endian.little);
-    writeAscii(36, 'data');
-    header.setUint32(40, dataSize, Endian.little);
-
-    final Uint8List out = Uint8List(44 + dataSize);
-    out.setRange(0, 44, header.buffer.asUint8List());
-    return out;
   }
 }

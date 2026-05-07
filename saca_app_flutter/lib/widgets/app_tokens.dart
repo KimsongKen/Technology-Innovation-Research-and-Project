@@ -25,3 +25,34 @@ class SACAStrings {
     return language == AppLanguage.english ? english : warlpiri;
   }
 }
+
+/// Typography scale for workspace / triage questionnaire and related screens.
+/// Smaller page chrome so in-card questions and inputs read as the focal point.
+class SACATriageTypography {
+  SACATriageTypography._();
+
+  /// Title repeated under app bar (workspace, pre-result notes).
+  static const double pageHeadline = 24;
+
+  static const double pageSubtitle = 13;
+
+  /// Bold question line inside the white triage card.
+  static const double cardQuestion = 19;
+
+  static const double cardHint = 12;
+
+  /// Lead line outside the card (body map, pain pre-result headline).
+  static const double sectionLead = 17;
+
+  static const double sectionSub = 12;
+
+  /// Voice step: "Tap to Speak" accent line.
+  static const double voiceCta = 20;
+
+  /// Voice step: spoken question line.
+  static const double voiceQuestion = 18;
+
+  static const double gridLabel = 15;
+
+  static const double painPrompt = 13;
+}

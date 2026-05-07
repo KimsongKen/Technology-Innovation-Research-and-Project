@@ -160,3 +160,8 @@ flutter build apk --debug
 
 - Project folder: [saca_app_flutter](https://github.com/KimsongKen/Technology-Innovation-Research-and-Project/tree/main/saca_app_flutter)
 - Flutter docs: [docs.flutter.dev](https://docs.flutter.dev/)
+
+
+ flutter run -d emulator-
+ 
+

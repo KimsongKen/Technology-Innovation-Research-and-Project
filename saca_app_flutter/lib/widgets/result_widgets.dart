@@ -1,10 +1,15 @@
 part of '../main.dart';
 
 class _TriageHeader extends StatefulWidget {
-  const _TriageHeader({required this.triageLevel, required this.topCondition});
+  const _TriageHeader({
+    required this.triageLevel,
+    required this.topCondition,
+    this.languageBadge,
+  });
 
   final String triageLevel;
   final String topCondition;
+  final String? languageBadge;
 
   @override
   State<_TriageHeader> createState() => _TriageHeaderState();
@@ -68,8 +73,8 @@ class _TriageHeaderState extends State<_TriageHeader>
                   widget.triageLevel.toUpperCase(),
                   style: TextStyle(
                     color: triageColor,
-                    fontSize: 34,
-                    letterSpacing: 1.1,
+                    fontSize: 28,
+                    letterSpacing: 1.05,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -78,10 +83,27 @@ class _TriageHeaderState extends State<_TriageHeader>
                   widget.topCondition,
                   style: const TextStyle(
                     color: SACAColors.charcoal,
-                    fontSize: 21,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (widget.languageBadge != null &&
+                    widget.languageBadge!.trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      avatar: Icon(Icons.translate, size: 18, color: triageColor),
+                      label: Text(
+                        widget.languageBadge!.trim(),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      backgroundColor: triageColor.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -177,7 +199,7 @@ class _ActionPlanBox extends StatelessWidget {
             'Action Plan',
             style: TextStyle(
               color: tone,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.25,
             ),
@@ -187,7 +209,7 @@ class _ActionPlanBox extends StatelessWidget {
             resolvedRecommendation,
             style: const TextStyle(
               color: SACAColors.charcoal,
-              fontSize: 15,
+              fontSize: 14,
               height: 1.45,
             ),
           ),
