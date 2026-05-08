@@ -746,24 +746,27 @@ class _WorkspacePageState extends State<WorkspacePage> {
           ],
         );
       case 4:
-        return Column(
-          children: <Widget>[
-            _inputField(
-              controller: _medicationsController,
-              hintText: _bilingualPrompt(
-                english: 'Medications',
-                warlpiri: 'Pawuju (medications)',
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _inputField(
+                controller: _medicationsController,
+                hintText: _bilingualPrompt(
+                  english: 'Medications',
+                  warlpiri: 'Pawuju (medications)',
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            _inputField(
-              controller: _allergiesController,
-              hintText: _bilingualPrompt(
-                english: 'Allergies',
-                warlpiri: 'Yarnunjuku (allergies)',
+              const SizedBox(height: 10),
+              _inputField(
+                controller: _allergiesController,
+                hintText: _bilingualPrompt(
+                  english: 'Allergies',
+                  warlpiri: 'Yarnunjuku (allergies)',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       default:
         return const SizedBox.shrink();
@@ -1567,8 +1570,10 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
                     );
                   }
                   final TriageApiResult result = snapshot.data!;
-                  final Color resolvedColor = _triageColor(result.triageLevel);
-                  final AppLanguage appLang = SACAStateScope.of(context).selectedLanguage;
+                  final Color resolvedColor =
+                      TriagePresentation.colorForLevel(result.triageLevel);
+                  final AppLanguage appLang =
+                      SACAStateScope.of(context).selectedLanguage;
                   final String languageBadge =
                       appLang == AppLanguage.warlpiri ? 'Warlpiri (wbp)' : 'English';
                   if (_actionColor != resolvedColor) {
@@ -1602,44 +1607,58 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
                       'Patient notes: ${widget.session.additionalConcerns.trim()}',
                   ];
 
+                  final Widget headerWidget = FadeTransition(
+                    opacity: _heroFade,
+                    child: SlideTransition(
+                      position: _heroSlide,
+                      child: _TriageHeader(
+                        triageLevel: result.triageLevel,
+                        topCondition: result.topCondition,
+                        languageBadge: languageBadge,
+                        confidence: result.confidence,
+                      ),
+                    ),
+                  );
+
+                  final Widget planWidget = FadeTransition(
+                    opacity: _planFade,
+                    child: SlideTransition(
+                      position: _planSlide,
+                      child: _ActionPlanBox(
+                        triageLevel: result.triageLevel,
+                        recommendation: result.recommendation,
+                      ),
+                    ),
+                  );
+
+                  final Widget detailsWidget = FadeTransition(
+                    opacity: _detailsFade,
+                    child: SlideTransition(
+                      position: _detailsSlide,
+                      child: _AssessmentDetailsTile(
+                        transcript: result.transcriptFinal,
+                        symptoms: result.top3Symptoms.isNotEmpty
+                            ? result.top3Symptoms
+                            : fallbackDetails,
+                        rawTranscript: result.warlpiriRawTranscript,
+                      ),
+                    ),
+                  );
+
+                  /// Single vertical stack on all widths: escalation → outcome →
+                  /// actions → supporting details. Easier to scan than split panes.
                   return ListView(
+                    padding: const EdgeInsets.only(bottom: 12),
                     children: <Widget>[
-                      FadeTransition(
-                        opacity: _heroFade,
-                        child: SlideTransition(
-                          position: _heroSlide,
-                          child: _TriageHeader(
-                            triageLevel: result.triageLevel,
-                            topCondition: result.topCondition,
-                            languageBadge: languageBadge,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      FadeTransition(
-                        opacity: _planFade,
-                        child: SlideTransition(
-                          position: _planSlide,
-                          child: _ActionPlanBox(
-                            triageLevel: result.triageLevel,
-                            recommendation: result.recommendation,
-                          ),
-                        ),
-                      ),
+                      if (result.escalationTriggered) ...<Widget>[
+                        const _EscalationBanner(),
+                        const SizedBox(height: 16),
+                      ],
+                      headerWidget,
+                      const SizedBox(height: 20),
+                      planWidget,
                       const SizedBox(height: 16),
-                      FadeTransition(
-                        opacity: _detailsFade,
-                        child: SlideTransition(
-                          position: _detailsSlide,
-                          child: _AssessmentDetailsTile(
-                            transcript: result.transcriptFinal,
-                            symptoms: result.top3Symptoms.isNotEmpty
-                                ? result.top3Symptoms
-                                : fallbackDetails,
-                            rawTranscript: result.warlpiriRawTranscript,
-                          ),
-                        ),
-                      ),
+                      detailsWidget,
                     ],
                   );
                 },

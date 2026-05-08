@@ -5,11 +5,13 @@ class _TriageHeader extends StatefulWidget {
     required this.triageLevel,
     required this.topCondition,
     this.languageBadge,
+    this.confidence = 0.0,
   });
 
   final String triageLevel;
   final String topCondition;
   final String? languageBadge;
+  final double confidence;
 
   @override
   State<_TriageHeader> createState() => _TriageHeaderState();
@@ -49,123 +51,168 @@ class _TriageHeaderState extends State<_TriageHeader>
 
   @override
   Widget build(BuildContext context) {
-    final Color triageColor = _triageColor(widget.triageLevel);
-    final Color soft = Color.lerp(Colors.white, triageColor, 0.13)!;
+    final Color triageColor = TriagePresentation.colorForLevel(widget.triageLevel);
+    final IconData? sevIcon = TriagePresentation.severityIcon(widget.triageLevel);
     final String assessedAt = TimeOfDay.now().format(context);
+    final bool showConfidence =
+        widget.confidence > 0 && widget.confidence <= 1.0;
 
     return FadeTransition(
       opacity: _fadeIn,
       child: SlideTransition(
         position: _slideIn,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(30),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                soft.withValues(alpha: 0.95),
-                Colors.white,
-              ],
+            color: SACAColors.cardBackground,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: triageColor.withValues(alpha: 0.22),
+              width: 1.2,
             ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: triageColor.withValues(alpha: 0.28),
+                blurRadius: 36,
+                spreadRadius: -4,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: triageColor.withValues(alpha: 0.14),
+                blurRadius: 52,
+                spreadRadius: -8,
+                offset: const Offset(0, 22),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                SACAStrings.tr(
-                  context: context,
-                  english: 'ASSESSED AT $assessedAt',
-                  warlpiri: 'ASSESSED AT $assessedAt',
-                ),
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 10),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: triageColor.withValues(alpha: 0.14),
-                      shape: BoxShape.circle,
+                  Expanded(
+                    child: Text(
+                      SACAStrings.tr(
+                        context: context,
+                        english: 'ASSESSED AT $assessedAt',
+                        warlpiri: 'ASSESSED AT $assessedAt',
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                    child: Icon(Icons.shield_rounded, color: triageColor, size: 20),
                   ),
-                  const SizedBox(width: 10),
-                  const Spacer(),
-                  if (widget.languageBadge != null &&
-                      widget.languageBadge!.trim().isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: triageColor.withValues(alpha: 0.45),
-                          width: 1.2,
+                  const SizedBox(width: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: <Widget>[
+                      if (widget.languageBadge != null &&
+                          widget.languageBadge!.trim().isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: triageColor.withValues(alpha: 0.35),
+                              width: 1.1,
+                            ),
+                            color: triageColor.withValues(alpha: 0.06),
+                          ),
+                          child: Text(
+                            widget.languageBadge!.trim(),
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        widget.languageBadge!.trim(),
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                      if (showConfidence)
+                        _ConfidenceBadge(
+                          confidence: widget.confidence,
+                          accentColor: triageColor,
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Center(
-                child: Transform.translate(
-                  offset: const Offset(0, -4),
-                  child: Text(
-                    widget.triageLevel.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: triageColor,
-                      fontSize: 30,
-                      letterSpacing: 1.3,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               Text(
                 SACAStrings.tr(
                   context: context,
-                  english: 'DISEASE PREDICTION',
-                  warlpiri: 'DISEASE PREDICTION',
+                  english: 'CLINICAL FOCUS',
+                  warlpiri: 'CLINICAL FOCUS',
                 ),
-                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.7,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
                 ),
               ),
-              const SizedBox(height: 6),
-              Center(
-                child: Text(
-                  widget.topCondition,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: SACAColors.charcoal,
-                    fontSize: 28,
-                    height: 1.2,
-                    fontWeight: FontWeight.w800,
+              const SizedBox(height: 8),
+              Text(
+                widget.topCondition,
+                textAlign: TextAlign.left,
+                style: const TextStyle(
+                  color: SACAColors.charcoal,
+                  fontSize: 26,
+                  height: 1.22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: triageColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: triageColor.withValues(alpha: 0.4),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (sevIcon != null) ...<Widget>[
+                        Icon(
+                          sevIcon,
+                          color: triageColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        widget.triageLevel.toUpperCase(),
+                        style: TextStyle(
+                          color: triageColor,
+                          fontSize: 15,
+                          letterSpacing: 0.9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -175,7 +222,43 @@ class _TriageHeaderState extends State<_TriageHeader>
       ),
     );
   }
+}
 
+class _ConfidenceBadge extends StatelessWidget {
+  const _ConfidenceBadge({
+    required this.confidence,
+    required this.accentColor,
+  });
+
+  final double confidence;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final int pct = (confidence * 100).round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(Icons.verified_rounded, size: 12, color: accentColor),
+          const SizedBox(width: 4),
+          Text(
+            '$pct% confidence',
+            style: TextStyle(
+              color: accentColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AssessmentDetailsTile extends StatelessWidget {
@@ -199,28 +282,49 @@ class _AssessmentDetailsTile extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: SACAColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: SACAColors.subtleBorder),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        collapsedIconColor: SACAColors.secondaryText,
-        iconColor: SACAColors.deepClinicalGreen,
-        title: Row(
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: SACAColors.deepClinicalGreen.withValues(alpha: 0.08),
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          collapsedIconColor: SACAColors.secondaryText,
+          iconColor: SACAColors.deepClinicalGreen,
+          title: Row(
           children: <Widget>[
-            const Icon(Icons.fact_check_outlined, size: 20, color: SACAColors.deepClinicalGreen),
+            const Icon(
+              Icons.fact_check_outlined,
+              size: 20,
+              color: SACAColors.deepClinicalGreen,
+            ),
             const SizedBox(width: 10),
-            Text(
-              SACAStrings.tr(
-                context: context,
-                english: 'View Assessment Details',
-                warlpiri: 'View Assessment Details',
-              ),
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                color: SACAColors.charcoal,
+            Expanded(
+              child: Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'View Assessment Details',
+                  warlpiri: 'View Assessment Details',
+                ),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: SACAColors.charcoal,
+                ),
               ),
             ),
           ],
@@ -269,7 +373,10 @@ class _AssessmentDetailsTile extends StatelessWidget {
               children: cleanSymptoms
                   .map(
                     (String s) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: SACAColors.pageBackground,
                         borderRadius: BorderRadius.circular(99),
@@ -288,6 +395,7 @@ class _AssessmentDetailsTile extends StatelessWidget {
                   .toList(),
             ),
         ],
+        ),
       ),
     );
   }
@@ -320,47 +428,119 @@ class _ActionPlanBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color tone = _triageColor(triageLevel);
+    final Color tone = TriagePresentation.colorForLevel(triageLevel);
+    final IconData? sevIcon = TriagePresentation.severityIcon(triageLevel);
     final String resolvedRecommendation = recommendation.trim().isNotEmpty
         ? recommendation
-        : _defaultRecommendationForLevel(triageLevel);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border(left: BorderSide(color: tone, width: 4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.next_plan_rounded, color: tone, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                SACAStrings.tr(
-                  context: context,
-                  english: 'Next Steps',
-                  warlpiri: 'Next Steps',
-                ),
-                style: TextStyle(
-                  color: tone,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.2,
-                ),
+        : TriagePresentation.recommendationForLevel(triageLevel);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        decoration: BoxDecoration(
+          color: SACAColors.cardBackground,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: SACAColors.subtleBorder),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(height: 4, color: tone),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      if (sevIcon != null) ...<Widget>[
+                        Icon(
+                          sevIcon,
+                          color: tone,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        SACAStrings.tr(
+                          context: context,
+                          english: 'Recommended actions',
+                          warlpiri: 'Recommended actions',
+                        ),
+                        style: TextStyle(
+                          color: tone,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    resolvedRecommendation,
+                    style: const TextStyle(
+                      color: SACAColors.charcoal,
+                      fontSize: 15,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EscalationBanner extends StatelessWidget {
+  const _EscalationBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF8B0000).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF8B0000).withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          const Icon(
+            Icons.emergency_rounded,
+            color: Color(0xFF8B0000),
+            size: 20,
           ),
-          const SizedBox(height: 10),
-          Text(
-            resolvedRecommendation,
-            style: const TextStyle(
-              color: SACAColors.charcoal,
-              fontSize: 15,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              SACAStrings.tr(
+                context: context,
+                english:
+                    'ESCALATION TRIGGERED — Immediate clinical review required.',
+                warlpiri:
+                    'ESCALATION TRIGGERED — Immediate clinical review required.',
+              ),
+              style: const TextStyle(
+                color: Color(0xFF8B0000),
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],
@@ -411,7 +591,10 @@ class _ResultActionBar extends StatelessWidget {
                     onPressed: onReturnHome,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: SACAColors.secondaryText,
-                      side: const BorderSide(color: SACAColors.subtleBorder, width: 1.2),
+                      side: const BorderSide(
+                        color: SACAColors.subtleBorder,
+                        width: 1.2,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -419,7 +602,10 @@ class _ResultActionBar extends StatelessWidget {
                     ),
                     child: const Text(
                       'NEW ASSESSMENT',
-                      style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.1),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                      ),
                     ),
                   ),
                 ),
@@ -438,7 +624,10 @@ class _ResultActionBar extends StatelessWidget {
                     onPressed: onAlertClinic,
                     child: const Text(
                       'ALERT CLINIC',
-                      style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.2,
+                      ),
                     ),
                   ),
                 ),
@@ -449,33 +638,4 @@ class _ResultActionBar extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _triageColor(String level) {
-  final String normalized = level.toLowerCase();
-  if (normalized.contains('severe') ||
-      normalized.contains('high') ||
-      normalized.contains('critical')) {
-    return const Color(0xFF8B0000);
-  }
-  if (normalized.contains('moderate') || normalized.contains('medium')) {
-    return const Color(0xFFB8860B);
-  }
-  return const Color(0xFF1A5241);
-}
-
-String _defaultRecommendationForLevel(String level) {
-  final String normalized = level.toLowerCase();
-  if (normalized.contains('severe') ||
-      normalized.contains('high') ||
-      normalized.contains('critical')) {
-    return 'Evacuate immediately. Alert the nearest medical officer. '
-        'Monitor vitals every 5 minutes.';
-  }
-  if (normalized.contains('moderate') || normalized.contains('medium')) {
-    return 'Schedule clinic visit within 4 hours. Keep patient hydrated. '
-        'Monitor for worsening symptoms.';
-  }
-  return 'Routine check-up recommended. Provide home care instructions. '
-      'Follow up if symptoms persist.';
 }

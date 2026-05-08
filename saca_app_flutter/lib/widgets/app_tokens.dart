@@ -1,5 +1,49 @@
 part of '../main.dart';
 
+/// Centralised triage-level presentation logic used across result widgets,
+/// the workspace pages, and the triage service fallback.
+class TriagePresentation {
+  TriagePresentation._();
+
+  static Color colorForLevel(String level) {
+    final String n = level.toLowerCase();
+    if (n.contains('severe') || n.contains('high') || n.contains('critical')) {
+      return const Color(0xFF8B0000);
+    }
+    if (n.contains('moderate') || n.contains('medium')) {
+      return const Color(0xFFB8860B);
+    }
+    return const Color(0xFF1A5241);
+  }
+
+  static String recommendationForLevel(String level) {
+    final String n = level.toLowerCase();
+    if (n.contains('severe') || n.contains('high') || n.contains('critical')) {
+      return 'Evacuate immediately. Alert the nearest medical officer. '
+          'Monitor vitals every 5 minutes.';
+    }
+    if (n.contains('moderate') || n.contains('medium')) {
+      return 'Schedule clinic visit within 4 hours. Keep patient hydrated. '
+          'Monitor for worsening symptoms.';
+    }
+    return 'Routine check-up recommended. Provide home care instructions. '
+        'Follow up if symptoms persist.';
+  }
+
+  /// Icon for high / moderate triage only. Returns null for mild / routine
+  /// levels so the UI does not show a checkmark or extra glyph for severity.
+  static IconData? severityIcon(String level) {
+    final String n = level.toLowerCase();
+    if (n.contains('severe') || n.contains('high') || n.contains('critical')) {
+      return Icons.emergency_rounded;
+    }
+    if (n.contains('moderate') || n.contains('medium')) {
+      return Icons.warning_amber_rounded;
+    }
+    return null;
+  }
+}
+
 class SACAColors {
   static const Color warlpiriOrange = Color(0xFFD17E2F);
   static const Color deepClinicalGreen = Color(0xFF1A5241);

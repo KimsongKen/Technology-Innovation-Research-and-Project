@@ -171,7 +171,7 @@ class TriageService {
       topCondition:
           session.chiefComplaint.isEmpty ? 'General clinical review' : 'Symptom review required',
       transcriptFinal: transcriptOut.isNotEmpty ? transcriptOut : narrative,
-      recommendation: _defaultRecommendationForLevel(fallbackLevel),
+      recommendation: TriagePresentation.recommendationForLevel(fallbackLevel),
       confidence: 0.0,
       top3Symptoms: const <String>[],
       escalationTriggered: false,
