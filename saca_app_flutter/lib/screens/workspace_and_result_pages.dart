@@ -1313,12 +1313,11 @@ class _PreResultNotesPageState extends State<PreResultNotesPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 14),
-                                Expanded(
+                                Flexible(
                                   child: TextField(
                                     controller: _additionalController,
-                                    expands: true,
-                                    maxLines: null,
-                                    minLines: null,
+                                    minLines: 4,
+                                    maxLines: 6,
                                     textAlignVertical: TextAlignVertical.top,
                                     cursorColor: accent,
                                     decoration: InputDecoration(
@@ -1351,48 +1350,51 @@ class _PreResultNotesPageState extends State<PreResultNotesPage> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 12),
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                   children: <Widget>[
-                                    OutlinedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).pop(
-                                          AssessmentPreOutcome.redo,
-                                        );
-                                      },
-                                      icon: const Icon(Icons.replay_rounded),
-                                      label: Text(
-                                        SACAStrings.tr(
-                                          context: context,
-                                          english: 'Redo assessment',
-                                          warlpiri: 'Redo assessment',
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.of(context).pop(
+                                            AssessmentPreOutcome.redo,
+                                          );
+                                        },
+                                        icon: const Icon(Icons.replay_rounded),
+                                        label: Text(
+                                          SACAStrings.tr(
+                                            context: context,
+                                            english: 'Redo assessment',
+                                            warlpiri: 'Redo assessment',
+                                          ),
                                         ),
                                       ),
                                     ),
-                                    FilledButton(
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: accent,
-                                      ),
-                                      onPressed: () {
-                                        widget.session.additionalConcerns =
-                                            _additionalController.text.trim();
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute<void>(
-                                            builder: (_) => ResultSummaryPage(
-                                              session: widget.session,
-                                              triageService:
-                                                  widget.triageService,
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: accent,
+                                        ),
+                                        onPressed: () {
+                                          widget.session.additionalConcerns =
+                                              _additionalController.text.trim();
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => ResultSummaryPage(
+                                                session: widget.session,
+                                                triageService:
+                                                    widget.triageService,
+                                              ),
                                             ),
+                                          );
+                                        },
+                                        child: Text(
+                                          SACAStrings.tr(
+                                            context: context,
+                                            english: 'See triage results',
+                                            warlpiri: 'See triage results',
                                           ),
-                                        );
-                                      },
-                                      child: Text(
-                                        SACAStrings.tr(
-                                          context: context,
-                                          english: 'See triage results',
-                                          warlpiri: 'See triage results',
                                         ),
                                       ),
                                     ),
@@ -1431,10 +1433,73 @@ class ResultSummaryPage extends StatefulWidget {
   State<ResultSummaryPage> createState() => _ResultSummaryPageState();
 }
 
-class _ResultSummaryPageState extends State<ResultSummaryPage> {
+class _ResultSummaryPageState extends State<ResultSummaryPage>
+    with SingleTickerProviderStateMixin {
   late Future<TriageApiResult> _future;
   bool _initialised = false;
+  bool _didPlayEntry = false;
   Color _actionColor = const Color(0xFF1A5241);
+  late final AnimationController _entryController;
+  late final Animation<double> _heroFade;
+  late final Animation<Offset> _heroSlide;
+  late final Animation<double> _planFade;
+  late final Animation<Offset> _planSlide;
+  late final Animation<double> _detailsFade;
+  late final Animation<Offset> _detailsSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _heroFade = CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.0, 0.42, curve: Curves.easeOutCubic),
+    );
+    _heroSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.0, 0.42, curve: Curves.easeOutCubic),
+      ),
+    );
+    _planFade = CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.22, 0.72, curve: Curves.easeOutCubic),
+    );
+    _planSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.22, 0.72, curve: Curves.easeOutCubic),
+      ),
+    );
+    _detailsFade = CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.44, 1.0, curve: Curves.easeOutCubic),
+    );
+    _detailsSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.44, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -1512,83 +1577,68 @@ class _ResultSummaryPageState extends State<ResultSummaryPage> {
                       setState(() => _actionColor = resolvedColor);
                     });
                   }
+                  if (!_didPlayEntry) {
+                    _didPlayEntry = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      _entryController.forward(from: 0);
+                    });
+                  }
+
+                  final List<String> fallbackDetails = <String>[
+                    if (widget.session.chiefComplaint.isNotEmpty)
+                      widget.session.chiefComplaint,
+                    if (widget.session.onset.isNotEmpty)
+                      'Onset: ${widget.session.onset}',
+                    if (widget.session.medications.isNotEmpty)
+                      'Meds: ${widget.session.medications}',
+                    if (widget.session.allergies.isNotEmpty)
+                      'Allergies: ${widget.session.allergies}',
+                    'Pain intensity: ${widget.session.painScore.clamp(1, 10)}/10',
+                    if (painLocationText.isNotEmpty &&
+                        painLocationText != 'None selected')
+                      'Pain location: $painLocationText',
+                    if (widget.session.additionalConcerns.trim().isNotEmpty)
+                      'Patient notes: ${widget.session.additionalConcerns.trim()}',
+                  ];
+
                   return ListView(
                     children: <Widget>[
-                      _TriageHeader(
-                        triageLevel: result.triageLevel,
-                        topCondition: result.topCondition,
-                        languageBadge: languageBadge,
-                      ),
-                      const SizedBox(height: 18),
-                      _PatientTranscriptBox(transcript: result.transcriptFinal),
-                      if (result.warlpiriRawTranscript != null &&
-                          result.warlpiriRawTranscript!.trim().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.72),
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: SACAColors.subtleBorder),
-                            ),
-                            child: ExpansionTile(
-                              tilePadding: const EdgeInsets.symmetric(horizontal: 18),
-                              childrenPadding: const EdgeInsets.only(bottom: 12),
-                              title: const Text(
-                                'Voice transcript (as recognized)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: SACAColors.secondaryText,
-                                ),
-                              ),
-                              children: <Widget>[
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      result.warlpiriRawTranscript!,
-                                      style: const TextStyle(
-                                        color: SACAColors.charcoal,
-                                        fontSize: 14,
-                                        height: 1.45,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                      FadeTransition(
+                        opacity: _heroFade,
+                        child: SlideTransition(
+                          position: _heroSlide,
+                          child: _TriageHeader(
+                            triageLevel: result.triageLevel,
+                            topCondition: result.topCondition,
+                            languageBadge: languageBadge,
                           ),
                         ),
-                      const SizedBox(height: 14),
-                      _ActionPlanBox(
-                        triageLevel: result.triageLevel,
-                        recommendation: result.recommendation,
+                      ),
+                      const SizedBox(height: 18),
+                      FadeTransition(
+                        opacity: _planFade,
+                        child: SlideTransition(
+                          position: _planSlide,
+                          child: _ActionPlanBox(
+                            triageLevel: result.triageLevel,
+                            recommendation: result.recommendation,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      _SymptomWrap(
-                        symptoms: result.top3Symptoms.isNotEmpty
-                            ? result.top3Symptoms
-                            : <String>[
-                                if (widget.session.chiefComplaint.isNotEmpty)
-                                  widget.session.chiefComplaint,
-                                if (widget.session.onset.isNotEmpty)
-                                  'Onset: ${widget.session.onset}',
-                                if (widget.session.medications.isNotEmpty)
-                                  'Meds: ${widget.session.medications}',
-                                if (widget.session.allergies.isNotEmpty)
-                                  'Allergies: ${widget.session.allergies}',
-                                'Pain intensity: ${widget.session.painScore.clamp(1, 10)}/10',
-                                if (painLocationText.isNotEmpty &&
-                                    painLocationText != 'None selected')
-                                  'Pain location: $painLocationText',
-                                if (widget.session.additionalConcerns
-                                    .trim()
-                                    .isNotEmpty)
-                                  'Patient notes: ${widget.session.additionalConcerns.trim()}',
-                              ],
+                      FadeTransition(
+                        opacity: _detailsFade,
+                        child: SlideTransition(
+                          position: _detailsSlide,
+                          child: _AssessmentDetailsTile(
+                            transcript: result.transcriptFinal,
+                            symptoms: result.top3Symptoms.isNotEmpty
+                                ? result.top3Symptoms
+                                : fallbackDetails,
+                            rawTranscript: result.warlpiriRawTranscript,
+                          ),
+                        ),
                       ),
                     ],
                   );
