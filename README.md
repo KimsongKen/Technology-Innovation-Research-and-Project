@@ -1,61 +1,221 @@
-Disease Prediction Model (Sub-Module)
-Sovandara_Disease_Model
-Purpose
-This module handles the core disease prediction for the SACA project. Given a set of binary symptom inputs, the model predicts the most likely disease across 211 possible conditions, with severity classification serving as a supporting safety layer.
-Dataset
-PropertyValueFilesaca_final_dataset_self.csvSamples29,995Features254 symptom columnsDisease Classes211Severity Classes3 (Mild / Moderate / Severe)
-Model Performance
-ModelTest AccuracyDecision Tree (Baseline)—LightGBM9/10 correct (smoke test)CatBoost9/10 correct (smoke test) ← BEST
-ML Pipeline
+# SACA Integration Archive README
 
-EDA — Sparsity analysis, symptom frequency distribution
-Preprocessing — Rare class handling, stratified train/val/test split (70/15/15)
-SMOTE — Oversampling to balance minority disease classes
-Group Split — Symptom-pattern grouping to prevent data leakage
-Training — Decision Tree (baseline), LightGBM, CatBoost
-Evaluation — Accuracy, per-model comparison, JSON test output
+This document is the consolidated technical record of the current SACA integration state across backend and frontend.
 
-Models Saved
-models/
-  ├── decision_tree.pkl
-  ├── lightgbm_model.pkl
-  ├── catboost_model.cbm
-  └── label_encoder.pkl
+It covers:
 
-Note: Model files are excluded from Git via .gitignore. Run the notebook to regenerate them.
+- What is currently deployed and used
+- What was migrated/removed from legacy flows
+- API contract used by Flutter
+- STT model options and runtime toggles
+- Debugging and operations guidance
+- Archive policy for old artifacts
 
-Installation & Setup
+---
 
-Install dependencies:
+## 1) Project State (Current)
 
-powershell   python -m pip install lightgbm catboost imbalanced-learn
+SACA now runs as a **Secure Bridge FastAPI service** for voice triage:
 
-Run the notebook:
+1. Flutter records audio (`.wav`)
+2. Backend receives `UploadFile`
+3. STT transcribes speech to text
+4. SBERT encodes transcript to semantic vector
+5. Triage service returns a deterministic JSON response
 
-powershell   cd Sovandara_Disease_Model/notebooks
-   jupyter notebook disease_model.ipynb
+Primary endpoint:
 
-Verify setup:
+- `POST /triage/analyze-voice`
 
-powershell   cd Sovandara_Disease_Model
-   python test_setup.py
-Expected: Results: 20/20 passed  ALL GOOD! ✓
-File Structure
-Sovandara_Disease_Model/
-  ├── data/
-  │   ├── saca_final_dataset_self.csv
-  │   └── test_results.json
-  ├── models/
-  │   ├── decision_tree.pkl
-  │   ├── lightgbm_model.pkl
-  │   ├── catboost_model.cbm
-  │   └── label_encoder.pkl
-  ├── notebooks/
-  │   └── disease_model.ipynb
-  └── test_setup.py
-Technical Role: Sovandara Chin
-Primary Focus: End-to-End Disease Prediction Pipeline
+Primary response fields:
 
-Data: EDA, sparsity analysis, rare class handling, SMOTE balancing
-Training: Decision Tree (baseline), LightGBM, CatBoost (multiclass)
-Evaluation: Accuracy scoring, JSON prediction output, automated test suite
+- `transcript` (string)
+- `triage_level` (`Severe` | `Moderate` | `Mild`)
+- `top_condition` (string)
+- `recommendation` (string)
+
+---
+
+## 2) Backend Architecture
+
+Backend app entry:
+
+- `api/main.py`
+
+Core router:
+
+- `api/bridge/router.py`
+
+Supporting services:
+
+- `api/bridge/stt_service.py`
+- `api/bridge/nlp_service.py`
+- `api/bridge/triage_service.py`
+- `api/bridge/audio_pipeline.py`
+- `api/bridge/security.py`
+- `api/bridge/config.py`
+
+### Pipeline
+
+- Audio normalization: mono PCM16 @ 16kHz
+- STT providers:
+  - faster-whisper (primary when enabled)
+  - whisper-tiny (optional fallback when enabled)
+  - mock mode (for deterministic bridge tests)
+- NLP:
+  - `sentence-transformers/all-MiniLM-L6-v2`
+- Triage:
+  - symptom phrase matching + pain map + semantic risk bias
+
+---
+
+## 3) Frontend Integration (Flutter)
+
+Frontend app:
+
+- `c:/Users/kimso/develop/saca_app/lib/main.dart`
+
+Integrated behavior:
+
+- Voice mode:
+  - records `.wav`
+  - sends to backend for transcription and triage
+  - displays transcript in UI
+  - continues to result screen
+- Text mode:
+  - mic interaction removed
+  - text-only user flow
+- Added verbose diagnostics:
+  - permission status
+  - recorded file path and size
+  - upload URL, status code, response snippet
+
+Resolved UI issues:
+
+- Removed duplicate question rendering in voice flow
+- Corrected route mismatch and fallback upload behavior
+
+---
+
+## 4) API Routes (Current + Compatibility)
+
+### Core production route
+
+- `POST /triage/analyze-voice`
+
+### Compatibility routes (kept during migration)
+
+- `POST /v2/triage/analyze-voice`
+- `POST /v2/triage/predict-multipart`
+- `POST /triage/predict-multipart`
+- `POST /v2/transcribe`
+- `POST /transcribe`
+- `POST /triage/transcribe`
+
+These compatibility routes exist to prevent frontend downtime while old clients are phased out.
+
+---
+
+## 5) STT Runtime Controls (Env Vars)
+
+Set before launching uvicorn:
+
+- `SACA_USE_MOCK_TRANSCRIBE` (`0`/`1`)
+- `SACA_USE_FASTER_WHISPER` (`0`/`1`)
+- `SACA_WHISPER_MODEL` (default: `small`)
+- `SACA_WHISPER_DEVICE` (default: `cpu`)
+- `SACA_WHISPER_COMPUTE_TYPE` (default: `int8`)
+- `SACA_USE_WHISPER_TINY_FALLBACK` (`0`/`1`)
+- `SACA_WHISPER_TINY_MODEL` (default: `tiny`)
+- `SACA_STT_TIMEOUT_SECONDS` (default: `10.0`)
+- `SACA_STT_FAILURE_WARN_SECONDS` (default: `10.0`)
+- `SACA_LOG_TRANSCRIPTS` (`0`/`1`)
+
+Recommended stable local config:
+
+- `SACA_USE_MOCK_TRANSCRIBE=0`
+- `SACA_USE_FASTER_WHISPER=1`
+- `SACA_WHISPER_DEVICE=cpu`
+- `SACA_WHISPER_COMPUTE_TYPE=int8`
+- `SACA_USE_WHISPER_TINY_FALLBACK=1`
+
+---
+
+## 6) Model and Artifact Notes
+
+Runtime currently reads:
+
+- `disease_names.pkl`
+- `symptom_columns.pkl`
+
+Archive/legacy artifacts are retained for rollback/reference and should not be treated as active production runtime inputs unless explicitly wired.
+
+This includes files under:
+
+- `archive/legacy_models/`
+- historical training outputs in `model_comparison/` and `model_training2/`
+
+---
+
+## 7) Debugging Guidance
+
+### If transcript is always identical
+
+- Check `SACA_USE_MOCK_TRANSCRIBE`
+- If set to `1`, backend intentionally returns mock text
+
+### If transcript returns 422 (`Failed to generate transcript`)
+
+- Audio capture may still be valid; STT provider likely failed or disabled
+- Check backend logs for:
+  - `STT MODEL FAILURE ... reason=timeout`
+  - `... reason=exception`
+  - `... reason=empty transcript`
+
+### If faster-whisper fails with CUDA DLL errors
+
+- Use CPU mode:
+  - `SACA_WHISPER_DEVICE=cpu`
+  - `SACA_WHISPER_COMPUTE_TYPE=int8`
+
+### Verify received audio integrity
+
+- Backend stores temporary debug audio under:
+  - `temp/audio_debug/`
+
+---
+
+## 8) Local Run
+
+From `c:/Users/kimso/Desktop/Technology Project`:
+
+```powershell
+$env:SACA_USE_MOCK_TRANSCRIBE="0"
+$env:SACA_USE_FASTER_WHISPER="1"
+$env:SACA_WHISPER_DEVICE="cpu"
+$env:SACA_WHISPER_COMPUTE_TYPE="int8"
+$env:SACA_USE_WHISPER_TINY_FALLBACK="1"
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+---
+
+## 9) Migration Summary (What Changed)
+
+- Removed websocket/live transcription dependency from core backend architecture
+- Standardized around a linear audio-to-JSON pipeline
+- Added strict upload/STT instrumentation
+- Added fallback STT provider toggle
+- Aligned Flutter request/response contract with backend
+- Added temporary compatibility routes for legacy clients
+
+---
+
+## 10) Archive Policy
+
+This `archive` area is for:
+
+- Legacy artifacts kept for rollback
+- Documentation of past architecture and migration context
+
+Do not delete archived model binaries without explicit approval from project owner.
