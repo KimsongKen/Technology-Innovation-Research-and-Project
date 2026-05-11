@@ -4,8 +4,7 @@ enum AssessmentPreOutcome { redo }
 
 /// 1→10 pain highlight: teal/green toward amber then red as pain increases.
 Color _painHeatColor(double sliderValue) {
-  final double t =
-      (((sliderValue - 1) / 9)).clamp(0.0, 1.0);
+  final double t = (((sliderValue - 1) / 9)).clamp(0.0, 1.0);
   const Color low = Color(0xFF1E5C42);
   const Color mid = Color(0xFFD68C38);
   const Color high = Color(0xFFC41E3A);
@@ -16,10 +15,7 @@ Color _painHeatColor(double sliderValue) {
 }
 
 class _PainIntensityBlock extends StatelessWidget {
-  const _PainIntensityBlock({
-    required this.value,
-    required this.onChanged,
-  });
+  const _PainIntensityBlock({required this.value, required this.onChanged});
 
   final double value;
   final ValueChanged<double> onChanged;
@@ -178,13 +174,15 @@ class WorkspacePage extends StatefulWidget {
 }
 
 class _WorkspacePageState extends State<WorkspacePage> {
-  final TextEditingController _chiefComplaintController = TextEditingController();
+  final TextEditingController _chiefComplaintController =
+      TextEditingController();
   final TextEditingController _medicationsController = TextEditingController();
   final TextEditingController _allergiesController = TextEditingController();
   late final TriageSession _session;
   int _currentStep = 0;
   bool _isWorsening = false;
   final Map<int, String> _capturedAnswers = <int, String>{};
+
   /// Selected onset duration for typed flow (step 2).
   String _selectedOnsetOption = '';
 
@@ -193,14 +191,6 @@ class _WorkspacePageState extends State<WorkspacePage> {
     '2-3 days',
     '4-6 days',
     '7 days or more',
-  ];
-  static const List<String> _bodyParts = <String>[
-    'Head',
-    'Chest',
-    'Stomach',
-    'Back',
-    'Arms',
-    'Legs',
   ];
 
   @override
@@ -256,48 +246,6 @@ class _WorkspacePageState extends State<WorkspacePage> {
     }
   }
 
-  void _navigateToPreResultCapture() {
-    if (widget.mode == ReportMode.selection) {
-      Navigator.of(context)
-          .push<AssessmentPreOutcome>(
-            MaterialPageRoute<AssessmentPreOutcome>(
-              builder: (_) => PreResultPainPage(
-                session: _session,
-                triageService: widget.triageService,
-                workspace: _workspaceConfig(context),
-                heroTag: widget.heroTag,
-                heroIcon: _flowHeroIcon(),
-              ),
-            ),
-          )
-          .then((AssessmentPreOutcome? outcome) {
-            if (!mounted) return;
-            if (outcome == AssessmentPreOutcome.redo) {
-              _resetAssessment();
-            }
-          });
-      return;
-    }
-    Navigator.of(context)
-        .push<AssessmentPreOutcome>(
-          MaterialPageRoute<AssessmentPreOutcome>(
-            builder: (_) => PreResultNotesPage(
-              session: _session,
-              triageService: widget.triageService,
-              workspace: _workspaceConfig(context),
-              heroTag: widget.heroTag,
-              heroIcon: _flowHeroIcon(),
-            ),
-          ),
-        )
-        .then((AssessmentPreOutcome? outcome) {
-          if (!mounted) return;
-          if (outcome == AssessmentPreOutcome.redo) {
-            _resetAssessment();
-          }
-        });
-  }
-
   @override
   Widget build(BuildContext context) {
     final WorkspaceConfig config = _workspaceConfig(context);
@@ -346,7 +294,9 @@ class _WorkspacePageState extends State<WorkspacePage> {
                           minHeight: 10,
                           value: (_currentStep + 1) / 5,
                           backgroundColor: SACAColors.subtleBorder,
-                          valueColor: AlwaysStoppedAnimation<Color>(config.accentColor),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            config.accentColor,
+                          ),
                         ),
                       ),
                     ),
@@ -389,7 +339,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
             const SizedBox(height: 16),
             Text(
               _bilingualPrompt(
-                english: 'Point to where it hurts',
+                english: 'Select where it hurts',
                 warlpiri: 'Nyarrpara-kapurlu pinyi?',
               ),
               style: const TextStyle(
@@ -400,78 +350,57 @@ class _WorkspacePageState extends State<WorkspacePage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: GridView.builder(
-                itemCount: _bodyParts.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 2.2,
-                ),
-                itemBuilder: (BuildContext context, int index) {
-                  final String bodyPart = _bodyParts[index];
-                  final bool selected = _session.painLocation.contains(bodyPart);
-                  return Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(28),
-                      onTap: () {
-                        setState(() {
-                          if (selected) {
-                            _session.painLocation.remove(bodyPart);
-                          } else {
-                            _session.painLocation.add(bodyPart);
-                          }
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? SACAColors.warlpiriOrange.withValues(alpha: 0.08)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: selected ? SACAColors.warlpiriOrange : SACAColors.subtleBorder,
-                            width: selected ? 2.3 : 1,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            bodyPart,
-                            style: const TextStyle(
-                              color: SACAColors.charcoal,
-                              fontSize: SACATriageTypography.gridLabel,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              child: InteractiveBodyWidget(
+                session: _session,
+                onSelectionChanged: () => setState(() {}),
               ),
             ),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
+              child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: config.accentColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: _navigateToPreResultCapture,
-                child: Text(
+                icon: const Icon(Icons.local_hospital_rounded),
+                label: Text(
                   SACAStrings.tr(
                     context: context,
-                    english: 'Calculate Triage',
-                    warlpiri: 'Calculate Triage',
+                    english: 'Choose illness symptoms',
+                    warlpiri: 'Choose illness symptoms',
                   ),
                 ),
+                onPressed: () {
+                  if (_session.painLocation.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          SACAStrings.tr(
+                            context: context,
+                            english:
+                                'Please select a body region before choosing illness symptoms.',
+                            warlpiri:
+                                'Please select a body region before choosing illness symptoms.',
+                          ),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _IllnessSelectionPage(
+                        session: _session,
+                        triageService: widget.triageService,
+                        workspace: config,
+                        heroTag: widget.heroTag,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -563,15 +492,15 @@ class _WorkspacePageState extends State<WorkspacePage> {
                           ],
                         )
                       : widget.mode == ReportMode.voice
-                          ? ClinicalInputCard(
-                              questionText: _stepQuestion(_currentStep),
-                              triageService: widget.triageService,
-                              accentColor: config.accentColor,
-                              initialTranscript:
-                                  _capturedAnswers[_currentStep] ?? '',
-                              onConfirmed: _handleClinicalConfirm,
-                            )
-                          : _buildStepInput(config),
+                      ? ClinicalInputCard(
+                          questionText: _stepQuestion(_currentStep),
+                          triageService: widget.triageService,
+                          accentColor: config.accentColor,
+                          initialTranscript:
+                              _capturedAnswers[_currentStep] ?? '',
+                          onConfirmed: _handleClinicalConfirm,
+                        )
+                      : _buildStepInput(config),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -699,13 +628,11 @@ class _WorkspacePageState extends State<WorkspacePage> {
                 final bool chosen = _selectedOnsetOption == option;
                 return ChoiceChip(
                   label: Text(
-                    _bilingualPrompt(
-                      english: option,
-                      warlpiri: option,
-                    ),
+                    _bilingualPrompt(english: option, warlpiri: option),
                   ),
                   selected: chosen,
-                  onSelected: (_) => setState(() => _selectedOnsetOption = option),
+                  onSelected: (_) =>
+                      setState(() => _selectedOnsetOption = option),
                 );
               }).toList(),
             ),
@@ -737,7 +664,9 @@ class _WorkspacePageState extends State<WorkspacePage> {
                   onSelected: (_) => setState(() => _isWorsening = false),
                 ),
                 ChoiceChip(
-                  label: Text(_bilingualPrompt(english: 'Yes', warlpiri: 'Yea')),
+                  label: Text(
+                    _bilingualPrompt(english: 'Yes', warlpiri: 'Yea'),
+                  ),
                   selected: _isWorsening,
                   onSelected: (_) => setState(() => _isWorsening = true),
                 ),
@@ -856,7 +785,8 @@ class _WorkspacePageState extends State<WorkspacePage> {
       case 1:
         return _bilingualPrompt(
           english: 'Are the symptoms getting better or worse?',
-          warlpiri: 'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
+          warlpiri:
+              'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
         );
       case 2:
         return _bilingualPrompt(
@@ -906,8 +836,8 @@ class _WorkspacePageState extends State<WorkspacePage> {
         return WorkspaceConfig(
           title: SACAStrings.tr(
             context: context,
-            english: 'Point to Pictures',
-            warlpiri: 'Point-kurra Picture-kurra',
+            english: 'Selection Symptoms',
+            warlpiri: 'Selection Symptoms',
           ),
           subtitle: SACAStrings.tr(
             context: context,
@@ -967,7 +897,25 @@ class _WorkspacePageState extends State<WorkspacePage> {
       setState(() => _currentStep += 1);
       return;
     }
-    _navigateToPreResultCapture();
+
+    Navigator.of(context)
+        .push<AssessmentPreOutcome>(
+          MaterialPageRoute<AssessmentPreOutcome>(
+            builder: (_) => PreResultNotesPage(
+              session: _session,
+              triageService: widget.triageService,
+              workspace: _workspaceConfig(context),
+              heroTag: widget.heroTag,
+              heroIcon: _flowHeroIcon(),
+            ),
+          ),
+        )
+        .then((AssessmentPreOutcome? outcome) {
+          if (!mounted) return;
+          if (outcome == AssessmentPreOutcome.redo) {
+            _resetAssessment();
+          }
+        });
   }
 
   void _handleClinicalConfirm(String value) {
@@ -988,6 +936,592 @@ class _WorkspacePageState extends State<WorkspacePage> {
       return true;
     }
     return _isWorsening;
+  }
+}
+
+class _IllnessSelectionPage extends StatefulWidget {
+  const _IllnessSelectionPage({
+    required this.session,
+    required this.triageService,
+    required this.workspace,
+    required this.heroTag,
+  });
+
+  final TriageSession session;
+  final TriageService triageService;
+  final WorkspaceConfig workspace;
+  final String heroTag;
+
+  @override
+  State<_IllnessSelectionPage> createState() => _IllnessSelectionPageState();
+}
+
+class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
+  static const List<String> _illnessOptions = <String>[
+    'Fever',
+    'Cough',
+    'Headache',
+    'Stomach pain',
+    'Chest pain',
+    'Back pain',
+    'Rash',
+    'Shortness of breath',
+    'Nausea',
+    'Dizziness',
+    'Fatigue',
+  ];
+
+  final Set<String> _selectedIllnesses = <String>{};
+  final TextEditingController _medicationsController = TextEditingController();
+  final TextEditingController _allergiesController = TextEditingController();
+  bool _isWorsening = false;
+  String _selectedOnsetOption = '';
+  int _currentStep = 0;
+
+  @override
+  void dispose() {
+    _medicationsController.dispose();
+    _allergiesController.dispose();
+    super.dispose();
+  }
+
+  void _goBack() {
+    if (_currentStep == 0) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() => _currentStep -= 1);
+  }
+
+  void _goNext() {
+    if (_currentStep == 0) {
+      if (_selectedIllnesses.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              SACAStrings.tr(
+                context: context,
+                english: 'Select at least one illness option to continue.',
+                warlpiri: 'Select at least one illness option to continue.',
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+      widget.session.chiefComplaint = _selectedIllnesses.join(', ');
+      setState(() => _currentStep = 1);
+      return;
+    }
+
+    if (_currentStep == 2 && _selectedOnsetOption.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SACAStrings.tr(
+              context: context,
+              english: 'Please choose how long this has been going on.',
+              warlpiri: 'Please choose how long this has been going on.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_currentStep < 4) {
+      setState(() => _currentStep += 1);
+      return;
+    }
+
+    widget.session.onset = _selectedOnsetOption.trim();
+    widget.session.isWorsening = _isWorsening;
+    widget.session.medications = _medicationsController.text.trim();
+    widget.session.allergies = _allergiesController.text.trim();
+
+    Navigator.of(context)
+        .push<AssessmentPreOutcome>(
+          MaterialPageRoute<AssessmentPreOutcome>(
+            builder: (_) => PreResultNotesPage(
+              session: widget.session,
+              triageService: widget.triageService,
+              workspace: widget.workspace,
+              heroTag: widget.heroTag,
+              heroIcon: Icons.touch_app_rounded,
+            ),
+          ),
+        )
+        .then((AssessmentPreOutcome? outcome) {
+          if (!mounted) return;
+          if (outcome == AssessmentPreOutcome.redo) {
+            Navigator.of(context).pop();
+          }
+        });
+  }
+
+  String _stepQuestion(int step) {
+    switch (step) {
+      case 1:
+        return _bilingualPrompt(
+          english: 'Are the symptoms getting better or worse?',
+          warlpiri:
+              'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
+        );
+      case 2:
+        return _bilingualPrompt(
+          english: 'When did this start?',
+          warlpiri: 'Yaa pitjiri ka nyinanyi?',
+        );
+      case 3:
+        return _bilingualPrompt(
+          english: 'Is it getting worse quickly?',
+          warlpiri: 'Yalumpu kuja kapingkilypa nyinami?',
+        );
+      case 4:
+        return _bilingualPrompt(
+          english: 'List your medications and allergies.',
+          warlpiri: 'Yimi ngarrka-jarri karlipa pawuju manu yarnunjuku?',
+        );
+      default:
+        return _bilingualPrompt(
+          english: 'Choose the illness symptoms that apply.',
+          warlpiri: 'Choose the illness symptoms that apply.',
+        );
+    }
+  }
+
+  String _painMainCardQuestion() {
+    return _bilingualPrompt(
+      english: 'How intense is your pain right now?',
+      warlpiri: 'How intense is your pain right now?',
+    );
+  }
+
+  String _bilingualPrompt({required String english, required String warlpiri}) {
+    final AppLanguage language = SACAStateScope.of(context).selectedLanguage;
+    if (language == AppLanguage.warlpiri) {
+      return '$english / $warlpiri';
+    }
+    return english;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: SACAColors.pageBackground,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(widget.workspace.title),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english: 'Illness symptoms',
+                      warlpiri: 'Illness symptoms',
+                    ),
+                    style: const TextStyle(
+                      fontSize: SACATriageTypography.pageHeadline,
+                      fontWeight: FontWeight.w800,
+                      color: SACAColors.charcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english:
+                          'Select the illness symptoms that best match your problem.',
+                      warlpiri:
+                          'Select the illness symptoms that best match your problem.',
+                    ),
+                    style: const TextStyle(
+                      color: SACAColors.secondaryText,
+                      fontSize: SACATriageTypography.pageSubtitle,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Expanded(
+                    child: _currentStep == 0
+                        ? _buildIllnessSelectionGrid()
+                        : _buildQuestionFlowBody(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIllnessSelectionGrid() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          _bilingualPrompt(
+            english: 'Choose one or more illness symptoms.',
+            warlpiri: 'Choose one or more illness symptoms.',
+          ),
+          style: const TextStyle(
+            fontSize: SACATriageTypography.sectionLead,
+            fontWeight: FontWeight.w700,
+            color: SACAColors.charcoal,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: GridView.builder(
+            itemCount: _illnessOptions.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 14,
+              crossAxisSpacing: 14,
+              childAspectRatio: 2.2,
+            ),
+            itemBuilder: (BuildContext context, int index) {
+              final String illness = _illnessOptions[index];
+              final bool selected = _selectedIllnesses.contains(illness);
+              return Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () {
+                    setState(() {
+                      if (selected) {
+                        _selectedIllnesses.remove(illness);
+                      } else {
+                        _selectedIllnesses.add(illness);
+                      }
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? widget.workspace.accentColor.withValues(alpha: 0.08)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: selected
+                            ? widget.workspace.accentColor
+                            : SACAColors.subtleBorder,
+                        width: selected ? 2.3 : 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        illness,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: SACAColors.charcoal,
+                          fontSize: SACATriageTypography.gridLabel,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: widget.workspace.accentColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: _goNext,
+            child: Text(
+              SACAStrings.tr(
+                context: context,
+                english: 'Continue',
+                warlpiri: 'Continue',
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuestionFlowBody() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.only(bottom: 18),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              minHeight: 10,
+              value: (_currentStep + 1) / 5,
+              backgroundColor: SACAColors.subtleBorder,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                widget.workspace.accentColor,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _BaseCard(
+            active: false,
+            accentColor: widget.workspace.accentColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  _currentStep == 1
+                      ? _painMainCardQuestion()
+                      : _stepQuestion(_currentStep),
+                  style: const TextStyle(
+                    fontSize: SACATriageTypography.cardQuestion,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                    color: SACAColors.charcoal,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Expanded(child: _buildStepInput()),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    OutlinedButton.icon(
+                      onPressed: _goBack,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: Text(
+                        SACAStrings.tr(
+                          context: context,
+                          english: 'Back',
+                          warlpiri: 'Rete',
+                        ),
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: widget.workspace.accentColor,
+                      ),
+                      onPressed: _goNext,
+                      child: Text(
+                        _currentStep == 4
+                            ? SACAStrings.tr(
+                                context: context,
+                                english: 'Continue',
+                                warlpiri: 'Continue',
+                              )
+                            : SACAStrings.tr(
+                                context: context,
+                                english: 'Next',
+                                warlpiri: 'Next',
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepInput() {
+    switch (_currentStep) {
+      case 1:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _PainIntensityBlock(
+              value: widget.session.painScore.toDouble(),
+              onChanged: (double v) {
+                setState(() {
+                  widget.session.painScore = v.round().clamp(1, 10);
+                });
+              },
+            ),
+            _betterWorseDividerBlock(),
+            const SizedBox(height: 4),
+            _betterWorseSubheading(),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: <Widget>[
+                ChoiceChip(
+                  label: Text(
+                    _bilingualPrompt(
+                      english: 'Getting Better',
+                      warlpiri: 'Ngurrju-jarri',
+                    ),
+                  ),
+                  selected: !_isWorsening,
+                  onSelected: (_) => setState(() => _isWorsening = false),
+                ),
+                ChoiceChip(
+                  label: Text(
+                    _bilingualPrompt(
+                      english: 'Getting Worse',
+                      warlpiri: 'Panu',
+                    ),
+                  ),
+                  selected: _isWorsening,
+                  onSelected: (_) => setState(() => _isWorsening = true),
+                ),
+              ],
+            ),
+          ],
+        );
+      case 2:
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: <String>['1 day', '2-3 days', '4-6 days', '7 days or more']
+              .map((String option) {
+                final bool chosen = _selectedOnsetOption == option;
+                return ChoiceChip(
+                  label: Text(
+                    _bilingualPrompt(english: option, warlpiri: option),
+                  ),
+                  selected: chosen,
+                  onSelected: (_) =>
+                      setState(() => _selectedOnsetOption = option),
+                );
+              })
+              .toList(),
+        );
+      case 3:
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: <Widget>[
+            ChoiceChip(
+              label: Text(_bilingualPrompt(english: 'No', warlpiri: 'No')),
+              selected: !_isWorsening,
+              onSelected: (_) => setState(() => _isWorsening = false),
+            ),
+            ChoiceChip(
+              label: Text(_bilingualPrompt(english: 'Yes', warlpiri: 'Yea')),
+              selected: _isWorsening,
+              onSelected: (_) => setState(() => _isWorsening = true),
+            ),
+          ],
+        );
+      case 4:
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _inputField(
+                controller: _medicationsController,
+                hintText: _bilingualPrompt(
+                  english: 'Medications',
+                  warlpiri: 'Pawuju (medications)',
+                ),
+              ),
+              const SizedBox(height: 10),
+              _inputField(
+                controller: _allergiesController,
+                hintText: _bilingualPrompt(
+                  english: 'Allergies',
+                  warlpiri: 'Yarnunjuku (allergies)',
+                ),
+              ),
+            ],
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _inputField({
+    required TextEditingController controller,
+    required String hintText,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: 3,
+      decoration: InputDecoration(
+        hintText: hintText,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: SACAColors.subtleBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: SACAColors.subtleBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: SACAColors.deepClinicalGreen),
+        ),
+      ),
+    );
+  }
+
+  Widget _betterWorseDividerBlock() {
+    return Divider(
+      height: 28,
+      thickness: 1,
+      color: SACAColors.subtleBorder.withValues(alpha: 0.95),
+    );
+  }
+
+  Widget _betterWorseSubheading() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          SACAStrings.tr(
+            context: context,
+            english: 'Symptoms trend',
+            warlpiri: 'Symptoms trend',
+          ),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: SACAColors.secondaryText.withValues(alpha: 0.9),
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _stepQuestion(1),
+          style: TextStyle(
+            fontSize: SACATriageTypography.sectionSub + 1,
+            height: 1.35,
+            fontWeight: FontWeight.w600,
+            color: SACAColors.secondaryText,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1065,8 +1599,10 @@ class _PreResultPainPageState extends State<PreResultPainPage> {
                     Text(
                       SACAStrings.tr(
                         context: context,
-                        english: '1 — little pain · 5 — medium · 10 — unbearable',
-                        warlpiri: '1 — little pain · 5 — medium · 10 — unbearable',
+                        english:
+                            '1 — little pain · 5 — medium · 10 — unbearable',
+                        warlpiri:
+                            '1 — little pain · 5 — medium · 10 — unbearable',
                       ),
                       style: const TextStyle(
                         color: SACAColors.secondaryText,
@@ -1093,8 +1629,9 @@ class _PreResultPainPageState extends State<PreResultPainPage> {
                             children: <Widget>[
                               OutlinedButton.icon(
                                 onPressed: () {
-                                  Navigator.of(context)
-                                      .pop(AssessmentPreOutcome.redo);
+                                  Navigator.of(
+                                    context,
+                                  ).pop(AssessmentPreOutcome.redo);
                                 },
                                 icon: const Icon(Icons.replay_rounded),
                                 label: Text(
@@ -1117,26 +1654,30 @@ class _PreResultPainPageState extends State<PreResultPainPage> {
                                   ),
                                 ),
                                 onPressed: () {
-                                  widget.session.painScore =
-                                      _sliderValue.round().clamp(1, 10);
+                                  widget.session.painScore = _sliderValue
+                                      .round()
+                                      .clamp(1, 10);
                                   Navigator.of(context)
                                       .push<AssessmentPreOutcome>(
-                                    MaterialPageRoute<AssessmentPreOutcome>(
-                                      builder: (_) => PreResultNotesPage(
-                                        session: widget.session,
-                                        triageService: widget.triageService,
-                                        workspace: widget.workspace,
-                                        heroTag: widget.heroTag,
-                                        heroIcon: widget.heroIcon,
-                                      ),
-                                    ),
-                                  ).then((AssessmentPreOutcome? outcome) {
-                                    if (!context.mounted) return;
-                                    if (outcome == AssessmentPreOutcome.redo) {
-                                      Navigator.of(context)
-                                          .pop(AssessmentPreOutcome.redo);
-                                    }
-                                  });
+                                        MaterialPageRoute<AssessmentPreOutcome>(
+                                          builder: (_) => PreResultNotesPage(
+                                            session: widget.session,
+                                            triageService: widget.triageService,
+                                            workspace: widget.workspace,
+                                            heroTag: widget.heroTag,
+                                            heroIcon: widget.heroIcon,
+                                          ),
+                                        ),
+                                      )
+                                      .then((AssessmentPreOutcome? outcome) {
+                                        if (!context.mounted) return;
+                                        if (outcome ==
+                                            AssessmentPreOutcome.redo) {
+                                          Navigator.of(
+                                            context,
+                                          ).pop(AssessmentPreOutcome.redo);
+                                        }
+                                      });
                                 },
                                 child: Text(
                                   SACAStrings.tr(
@@ -1359,9 +1900,9 @@ class _PreResultNotesPageState extends State<PreResultNotesPage> {
                                     Expanded(
                                       child: OutlinedButton.icon(
                                         onPressed: () {
-                                          Navigator.of(context).pop(
-                                            AssessmentPreOutcome.redo,
-                                          );
+                                          Navigator.of(
+                                            context,
+                                          ).pop(AssessmentPreOutcome.redo);
                                         },
                                         icon: const Icon(Icons.replay_rounded),
                                         label: Text(
@@ -1461,41 +2002,35 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
       parent: _entryController,
       curve: const Interval(0.0, 0.42, curve: Curves.easeOutCubic),
     );
-    _heroSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: const Interval(0.0, 0.42, curve: Curves.easeOutCubic),
-      ),
-    );
+    _heroSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: const Interval(0.0, 0.42, curve: Curves.easeOutCubic),
+          ),
+        );
     _planFade = CurvedAnimation(
       parent: _entryController,
       curve: const Interval(0.22, 0.72, curve: Curves.easeOutCubic),
     );
-    _planSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: const Interval(0.22, 0.72, curve: Curves.easeOutCubic),
-      ),
-    );
+    _planSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: const Interval(0.22, 0.72, curve: Curves.easeOutCubic),
+          ),
+        );
     _detailsFade = CurvedAnimation(
       parent: _entryController,
       curve: const Interval(0.44, 1.0, curve: Curves.easeOutCubic),
     );
-    _detailsSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entryController,
-        curve: const Interval(0.44, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
+    _detailsSlide =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: const Interval(0.44, 1.0, curve: Curves.easeOutCubic),
+          ),
+        );
   }
 
   @override
@@ -1509,7 +2044,9 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
     super.didChangeDependencies();
     if (_initialised) return;
     _initialised = true;
-    final AppLanguage selectedLanguage = SACAStateScope.of(context).selectedLanguage;
+    final AppLanguage selectedLanguage = SACAStateScope.of(
+      context,
+    ).selectedLanguage;
     _future = widget.apiResult != null
         ? Future<TriageApiResult>.value(widget.apiResult!)
         : widget.triageService.submitSession(
@@ -1549,7 +2086,9 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
           );
         },
         onReturnHome: () {
-          Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+          Navigator.of(
+            context,
+          ).popUntil((Route<dynamic> route) => route.isFirst);
         },
       ),
       body: SafeArea(
@@ -1566,16 +2105,21 @@ class _ResultSummaryPageState extends State<ResultSummaryPage>
                   }
                   if (snapshot.hasError) {
                     return Center(
-                      child: Text('Failed to fetch triage result: ${snapshot.error}'),
+                      child: Text(
+                        'Failed to fetch triage result: ${snapshot.error}',
+                      ),
                     );
                   }
                   final TriageApiResult result = snapshot.data!;
-                  final Color resolvedColor =
-                      TriagePresentation.colorForLevel(result.triageLevel);
-                  final AppLanguage appLang =
-                      SACAStateScope.of(context).selectedLanguage;
-                  final String languageBadge =
-                      appLang == AppLanguage.warlpiri ? 'Warlpiri (wbp)' : 'English';
+                  final Color resolvedColor = TriagePresentation.colorForLevel(
+                    result.triageLevel,
+                  );
+                  final AppLanguage appLang = SACAStateScope.of(
+                    context,
+                  ).selectedLanguage;
+                  final String languageBadge = appLang == AppLanguage.warlpiri
+                      ? 'Warlpiri (wbp)'
+                      : 'English';
                   if (_actionColor != resolvedColor) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (!mounted) return;

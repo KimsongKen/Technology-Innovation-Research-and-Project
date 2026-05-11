@@ -13,6 +13,7 @@ part 'services/triage_service.dart';
 part 'screens/language_and_method_pages.dart';
 part 'screens/workspace_and_result_pages.dart';
 part 'widgets/app_tokens.dart';
+part 'widgets/body_part.dart';
 part 'widgets/cards.dart';
 part 'widgets/clinical_input_card.dart';
 part 'widgets/result_widgets.dart';
@@ -80,6 +81,3 @@ class _SACAAppState extends State<SACAApp> {
     );
   }
 }
-
-
-
