@@ -219,3 +219,40 @@ This `archive` area is for:
 - Documentation of past architecture and migration context
 
 Do not delete archived model binaries without explicit approval from project owner.
+
+## 11) Disease Prediction Model — Sovandara Chin
+
+### Overview
+This module handles core **disease prediction** for the SACA project. Given binary symptom inputs, the model predicts the most likely disease across 211 possible conditions, with severity classification as a supporting safety layer.
+
+### Dataset
+| Property | Value |
+|---|---|
+| File | `saca_final_dataset_self.csv` |
+| Samples | 29,995 |
+| Features | 254 symptom columns |
+| Disease Classes | 211 |
+| Severity Classes | 3 (Mild / Moderate / Severe) |
+
+### Model Performance
+| Model | Result |
+|---|---|
+| Decision Tree (Baseline) | — |
+| LightGBM | 9/10 correct |
+| CatBoost | 9/10 correct ← BEST |
+
+### ML Pipeline
+1. **EDA** — Sparsity analysis, symptom frequency distribution
+2. **Preprocessing** — Rare class handling, stratified split (70/15/15)
+3. **SMOTE** — Oversampling to balance minority disease classes
+4. **Group Split** — Symptom-pattern grouping to prevent data leakage
+5. **Training** — Decision Tree, LightGBM, CatBoost
+6. **Evaluation** — Accuracy scoring, JSON prediction output
+
+### Setup
+```powershell
+python -m pip install lightgbm catboost imbalanced-learn
+cd Sovandara_Disease_Model
+python test_setup.py
+```
+Expected: `Results: 20/20 passed  ALL GOOD! ✓`
