@@ -10,10 +10,10 @@ from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
 # =========================
-# 1. Load cleaned dataset
+# 1. Load dataset
 # =========================
 
-df = pd.read_csv("data/processed/cleaned_dataset.csv")
+df = pd.read_csv("data/raw/saca_final_dataset_self.csv")
 
 print("\n===== DATASET LOADED =====")
 print("Shape:", df.shape)
@@ -80,16 +80,14 @@ print(label_encoder_severity.classes_)
 # =========================
 
 X_train, X_temp, y_train, y_temp = train_test_split(
-    X,
-    y_encoded,
+    X, y_encoded,
     test_size=0.30,
     random_state=42,
     stratify=y_encoded
 )
 
 X_val, X_test, y_val, y_test = train_test_split(
-    X_temp,
-    y_temp,
+    X_temp, y_temp,
     test_size=0.50,
     random_state=42,
     stratify=y_temp
@@ -116,11 +114,11 @@ if imbalance_ratio <= 1.5:
 else:
     print("Dataset is imbalanced. SMOTE may be considered only on the training set.")
 
+
 # =========================
-# 5. Train directly on split data (no SMOTE needed)
+# 5. Train directly (no SMOTE needed)
 # =========================
 
-# Dataset is already balanced (~33% each class), so no oversampling needed
 print("\n===== DATA IS BALANCED =====")
 print("No SMOTE required - using original training data")
 print("Training set:", X_train.shape)
@@ -140,18 +138,12 @@ lgbm_severity = LGBMClassifier(
 )
 
 lgbm_severity.fit(X_train, y_train)
-
 y_pred_lgbm = lgbm_severity.predict(X_test)
-
 lgbm_f1 = sklearn.metrics.f1_score(y_test, y_pred_lgbm, average="weighted")
 
 print("\n===== LIGHTGBM SEVERITY RESULTS =====")
-print(sklearn.metrics.classification_report(
-    y_test,
-    y_pred_lgbm,
-    target_names=label_encoder_severity.classes_,
-    zero_division=0
-))
+print(sklearn.metrics.classification_report(y_test, y_pred_lgbm,
+    target_names=label_encoder_severity.classes_, zero_division=0))
 print("LightGBM Weighted F1-score:", lgbm_f1)
 
 
@@ -172,19 +164,12 @@ cat_severity = CatBoostClassifier(
 )
 
 cat_severity.fit(X_train, y_train)
-
-y_pred_cat = cat_severity.predict(X_test)
-y_pred_cat = y_pred_cat.flatten()
-
+y_pred_cat = cat_severity.predict(X_test).flatten()
 cat_f1 = sklearn.metrics.f1_score(y_test, y_pred_cat, average="weighted")
 
 print("\n===== CATBOOST SEVERITY RESULTS =====")
-print(sklearn.metrics.classification_report(
-    y_test,
-    y_pred_cat,
-    target_names=label_encoder_severity.classes_,
-    zero_division=0
-))
+print(sklearn.metrics.classification_report(y_test, y_pred_cat,
+    target_names=label_encoder_severity.classes_, zero_division=0))
 print("CatBoost Weighted F1-score:", cat_f1)
 
 
@@ -202,16 +187,14 @@ severe_index = [
 ][0]
 
 lgbm_severe_recall = sklearn.metrics.recall_score(
-    y_test,
-    y_pred_lgbm,
+    y_test, y_pred_lgbm,
     labels=[severe_index],
     average="macro",
     zero_division=0
 )
 
 cat_severe_recall = sklearn.metrics.recall_score(
-    y_test,
-    y_pred_cat,
+    y_test, y_pred_cat,
     labels=[severe_index],
     average="macro",
     zero_division=0
@@ -231,20 +214,12 @@ print("CatBoost Weighted F1-score:", cat_f1)
 print("LightGBM Severe Recall:", lgbm_severe_recall)
 print("CatBoost Severe Recall:", cat_severe_recall)
 
-# Prioritise severe recall first, then F1-score
 if cat_severe_recall > lgbm_severe_recall:
-    best_model = cat_severity
     best_model_name = "CatBoost"
 elif cat_severe_recall < lgbm_severe_recall:
-    best_model = lgbm_severity
     best_model_name = "LightGBM"
 else:
-    if cat_f1 >= lgbm_f1:
-        best_model = cat_severity
-        best_model_name = "CatBoost"
-    else:
-        best_model = lgbm_severity
-        best_model_name = "LightGBM"
+    best_model_name = "CatBoost" if cat_f1 >= lgbm_f1 else "LightGBM"
 
 print("Best severity model:", best_model_name)
 
@@ -253,15 +228,13 @@ print("Best severity model:", best_model_name)
 # 10. Save models and encoder
 # =========================
 
-joblib.dump(lgbm_severity, "models/lgbm_severity_model.pkl")
-joblib.dump(cat_severity, "models/catboost_severity_model.pkl")
-joblib.dump(best_model, "models/best_severity_model.pkl")
+joblib.dump(lgbm_severity,          "models/lgbm_severity_model.pkl")
+joblib.dump(cat_severity,           "models/catboost_severity_model.pkl")
 joblib.dump(label_encoder_severity, "models/label_encoder_severity.pkl")
-joblib.dump(X.columns.tolist(), "models/severity_feature_columns.pkl")
+joblib.dump(X.columns.tolist(),     "models/severity_feature_columns.pkl")
 
 print("\n===== FILES SAVED =====")
-print("Saved LightGBM severity model: models/lgbm_severity_model.pkl")
-print("Saved CatBoost severity model: models/catboost_severity_model.pkl")
-print("Saved best severity model: models/best_severity_model.pkl")
-print("Saved severity label encoder: models/label_encoder_severity.pkl")
-print("Saved feature columns: models/severity_feature_columns.pkl")
+print("Saved LightGBM severity model:  models/lgbm_severity_model.pkl")
+print("Saved CatBoost severity model:  models/catboost_severity_model.pkl")
+print("Saved severity label encoder:   models/label_encoder_severity.pkl")
+print("Saved feature columns:          models/severity_feature_columns.pkl")
