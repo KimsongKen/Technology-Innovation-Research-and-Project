@@ -1,258 +1,216 @@
-# SACA Integration Archive README
+# Sovandara — Disease Prediction & Severity Classification
+## SACA (Swin Smart Adaptive Clinical Assistant)
+**COS70008 Technology Innovation Research and Project — Swinburne University**
 
-This document is the consolidated technical record of the current SACA integration state across backend and frontend.
+# Overview
+This branch contains the ML Engineer contribution by Sovandara Chin for the SACA project — an AI-powered clinical triage assistant designed to support remote Indigenous communities, specifically the Warlpiri Yuendumu community in the Northern Territory, Australia.
 
-It covers:
+The core objective of this module is to:
+- **Predict the most likely disease** from a patient's reported symptoms
+- **Classify the severity** of the condition (Mild / Moderate / Severe) as a safety layer
 
-- What is currently deployed and used
-- What was migrated/removed from legacy flows
-- API contract used by Flutter
-- STT model options and runtime toggles
-- Debugging and operations guidance
-- Archive policy for old artifacts
+# Branch Structure
 
----
-
-## 1) Project State (Current)
-
-SACA now runs as a **Secure Bridge FastAPI service** for voice triage:
-
-1. Flutter records audio (`.wav`)
-2. Backend receives `UploadFile`
-3. STT transcribes speech to text
-4. SBERT encodes transcript to semantic vector
-5. Triage service returns a deterministic JSON response
-
-Primary endpoint:
-
-- `POST /triage/analyze-voice`
-
-Primary response fields:
-
-- `transcript` (string)
-- `triage_level` (`Severe` | `Moderate` | `Mild`)
-- `top_condition` (string)
-- `recommendation` (string)
-
----
-
-## 2) Backend Architecture
-
-Backend app entry:
-
-- `api/main.py`
-
-Core router:
-
-- `api/bridge/router.py`
-
-Supporting services:
-
-- `api/bridge/stt_service.py`
-- `api/bridge/nlp_service.py`
-- `api/bridge/triage_service.py`
-- `api/bridge/audio_pipeline.py`
-- `api/bridge/security.py`
-- `api/bridge/config.py`
-
-### Pipeline
-
-- Audio normalization: mono PCM16 @ 16kHz
-- STT providers:
-  - faster-whisper (primary when enabled)
-  - whisper-tiny (optional fallback when enabled)
-  - mock mode (for deterministic bridge tests)
-- NLP:
-  - `sentence-transformers/all-MiniLM-L6-v2`
-- Triage:
-  - symptom phrase matching + pain map + semantic risk bias
-
----
-
-## 3) Frontend Integration (Flutter)
-
-Frontend app:
-
-- `c:/Users/kimso/develop/saca_app/lib/main.dart`
-
-Integrated behavior:
-
-- Voice mode:
-  - records `.wav`
-  - sends to backend for transcription and triage
-  - displays transcript in UI
-  - continues to result screen
-- Text mode:
-  - mic interaction removed
-  - text-only user flow
-- Added verbose diagnostics:
-  - permission status
-  - recorded file path and size
-  - upload URL, status code, response snippet
-
-Resolved UI issues:
-
-- Removed duplicate question rendering in voice flow
-- Corrected route mismatch and fallback upload behavior
-
----
-
-## 4) API Routes (Current + Compatibility)
-
-### Core production route
-
-- `POST /triage/analyze-voice`
-
-### Compatibility routes (kept during migration)
-
-- `POST /v2/triage/analyze-voice`
-- `POST /v2/triage/predict-multipart`
-- `POST /triage/predict-multipart`
-- `POST /v2/transcribe`
-- `POST /transcribe`
-- `POST /triage/transcribe`
-
-These compatibility routes exist to prevent frontend downtime while old clients are phased out.
-
----
-
-## 5) STT Runtime Controls (Env Vars)
-
-Set before launching uvicorn:
-
-- `SACA_USE_MOCK_TRANSCRIBE` (`0`/`1`)
-- `SACA_USE_FASTER_WHISPER` (`0`/`1`)
-- `SACA_WHISPER_MODEL` (default: `small`)
-- `SACA_WHISPER_DEVICE` (default: `cpu`)
-- `SACA_WHISPER_COMPUTE_TYPE` (default: `int8`)
-- `SACA_USE_WHISPER_TINY_FALLBACK` (`0`/`1`)
-- `SACA_WHISPER_TINY_MODEL` (default: `tiny`)
-- `SACA_STT_TIMEOUT_SECONDS` (default: `10.0`)
-- `SACA_STT_FAILURE_WARN_SECONDS` (default: `10.0`)
-- `SACA_LOG_TRANSCRIPTS` (`0`/`1`)
-
-Recommended stable local config:
-
-- `SACA_USE_MOCK_TRANSCRIBE=0`
-- `SACA_USE_FASTER_WHISPER=1`
-- `SACA_WHISPER_DEVICE=cpu`
-- `SACA_WHISPER_COMPUTE_TYPE=int8`
-- `SACA_USE_WHISPER_TINY_FALLBACK=1`
-
----
-
-## 6) Model and Artifact Notes
-
-Runtime currently reads:
-
-- `disease_names.pkl`
-- `symptom_columns.pkl`
-
-Archive/legacy artifacts are retained for rollback/reference and should not be treated as active production runtime inputs unless explicitly wired.
-
-This includes files under:
-
-- `archive/legacy_models/`
-- historical training outputs in `model_comparison/` and `model_training2/`
-
----
-
-## 7) Debugging Guidance
-
-### If transcript is always identical
-
-- Check `SACA_USE_MOCK_TRANSCRIBE`
-- If set to `1`, backend intentionally returns mock text
-
-### If transcript returns 422 (`Failed to generate transcript`)
-
-- Audio capture may still be valid; STT provider likely failed or disabled
-- Check backend logs for:
-  - `STT MODEL FAILURE ... reason=timeout`
-  - `... reason=exception`
-  - `... reason=empty transcript`
-
-### If faster-whisper fails with CUDA DLL errors
-
-- Use CPU mode:
-  - `SACA_WHISPER_DEVICE=cpu`
-  - `SACA_WHISPER_COMPUTE_TYPE=int8`
-
-### Verify received audio integrity
-
-- Backend stores temporary debug audio under:
-  - `temp/audio_debug/`
-
----
-
-## 8) Local Run
-
-From `c:/Users/kimso/Desktop/Technology Project`:
-
-```powershell
-$env:SACA_USE_MOCK_TRANSCRIBE="0"
-$env:SACA_USE_FASTER_WHISPER="1"
-$env:SACA_WHISPER_DEVICE="cpu"
-$env:SACA_WHISPER_COMPUTE_TYPE="int8"
-$env:SACA_USE_WHISPER_TINY_FALLBACK="1"
-.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+Sovandara-branch/
+│
+├── disease_model/
+│   ├── data/
+│   │   ├── raw/
+│   │   │   └── saca_final_dataset_self.csv       ← original dataset (29,995 rows)
+│   │   ├── processed/
+│   │   │   └── cleaned_dataset.csv               ← cleaned dataset
+│   │   └── test_results.json                     ← model prediction results
+│   │
+│   ├── models/
+│   │   ├── catboost_model.cbm                    ← CatBoost disease model (BEST)
+│   │   ├── catboost_disease_model.pkl             ← CatBoost disease model (pkl)
+│   │   ├── catboost_severity_model.pkl            ← CatBoost severity model
+│   │   ├── decision_tree.pkl                     ← Decision Tree model
+│   │   ├── lightgbm_model.pkl                    ← LightGBM disease model (regenerate locally)
+│   │   ├── lgbm_severity_model.pkl               ← LightGBM severity model
+│   │   ├── label_encoder.pkl                     ← Disease label encoder (181 classes)
+│   │   ├── label_encoder_severity.pkl            ← Severity label encoder
+│   │   ├── disease_feature_columns.pkl           ← Feature column names
+│   │   └── severity_feature_columns.pkl          ← Severity feature column names
+│   │
+│   ├── notebooks/
+│   │   └── disease_model.ipynb                   ← Main Jupyter notebook (source of truth)
+│   │
+│   ├── reports/
+│   │   ├── confusion_matrix.png
+│   │   ├── data_exploration_output.txt
+│   │   ├── disease_prediction_output.txt
+│   │   ├── per_class_metrics.png
+│   │   ├── severity_classification_output.txt
+│   │   ├── severity_model_evaluation.md
+│   │   ├── symptom_count_distribution.png
+│   │   └── top20_symptoms.png
+│   │
+│   ├── screenshots/
+│   │   ├── disease_prediction_confusion_matrices.png
+│   │   └── severity_distribution.png
+│   │
+│   ├── scripts/
+│   │   ├── 01_data_exploration.py                ← EDA script
+│   │   ├── 02_disease_prediction.py              ← Disease model training
+│   │   └── 03_severity_classification.py         ← Severity model training
+│   │
+│   ├── requirements_full.txt                     ← Full environment dependencies
+│   └── test_setup.py                             ← Pipeline verification (20/20 tests)
+│
+├── README.md                                     ← This file
+├── requirements.txt                              ← Minimal dependencies
+└── .gitignore
+
+```
+> *`lightgbm_model.pkl` exceeds GitHub's 100MB file size limit. Run `02_disease_prediction.py` to regenerate it locally.
 
 ---
 
-## 9) Migration Summary (What Changed)
+# Dataset
 
-- Removed websocket/live transcription dependency from core backend architecture
-- Standardized around a linear audio-to-JSON pipeline
-- Added strict upload/STT instrumentation
-- Added fallback STT provider toggle
-- Aligned Flutter request/response contract with backend
-- Added temporary compatibility routes for legacy clients
-
----
-
-## 10) Archive Policy
-
-This `archive` area is for:
-
-- Legacy artifacts kept for rollback
-- Documentation of past architecture and migration context
-
-Do not delete archived model binaries without explicit approval from project owner.
-
-## 11) Disease Prediction Model — Sovandara Chin
-
-### Overview
-This module handles core **disease prediction** for the SACA project. Given binary symptom inputs, the model predicts the most likely disease across 211 possible conditions, with severity classification as a supporting safety layer.
-
-### Dataset
 | Property | Value |
 |---|---|
 | File | `saca_final_dataset_self.csv` |
-| Samples | 29,995 |
-| Features | 254 symptom columns |
-| Disease Classes | 211 |
-| Severity Classes | 3 (Mild / Moderate / Severe) |
+| Rows | 29,995 patient records |
+| Columns | 256 (254 symptom features + disease + severity) |
+| Disease classes | 211 unique diseases |
+| Severity classes | Mild / Moderate / Severe (~33% each) |
+| Sparsity | 97.81% (binary symptom features) |
 
-### Model Performance
-| Model | Result |
-|---|---|
-| Decision Tree (Baseline) | — |
-| LightGBM | 9/10 correct |
-| CatBoost | 9/10 correct ← BEST |
+# Models
 
-### ML Pipeline
-1. **EDA** — Sparsity analysis, symptom frequency distribution
-2. **Preprocessing** — Rare class handling, stratified split (70/15/15)
-3. **SMOTE** — Oversampling to balance minority disease classes
-4. **Group Split** — Symptom-pattern grouping to prevent data leakage
-5. **Training** — Decision Tree, LightGBM, CatBoost
-6. **Evaluation** — Accuracy scoring, JSON prediction output
+## Disease Prediction (Primary Goal)
 
-### Setup
-```powershell
-python -m pip install lightgbm catboost imbalanced-learn
-cd Sovandara_Disease_Model
+| Model | Weighted F1-Score | Accuracy |
+|---|---|---|
+| CatBoost | **89.14%** BEST | 89% |
+| LightGBM | 87.31% | 87% |
+| Decision Tree | ~3.53% | baseline |
+
+**Best model: CatBoost** (`catboost_model.cbm`)
+
+## Severity Classification (Safety Layer)
+
+| Model | Weighted F1-Score | Severe Recall |
+|---|---|---|
+| LightGBM | **95.87%** BEST | 95.87% |
+| CatBoost | 88.44% | 87.00% |
+
+**Best model: LightGBM** (`lgbm_severity_model.pkl`) - simpler 3-class balanced task favours LightGBM's speed and precision.
+
+> Note: High scores (95%+) on severity are expected and valid because the dataset has only 3 perfectly balanced classes with clean binary features. This is not overfitting — `test_setup.py` confirms 20/20 tests pass on unseen data.
+
+---
+
+# Setup & Installation
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/KimsongKen/Technology-Innovation-Research-and-Project.git
+cd Technology-Innovation-Research-and-Project
+git checkout Sovandara-branch
+cd disease_model
+```
+
+### 2. Create and activate virtual environment
+```bash
+python -m venv .venv-1
+# Windows
+.venv-1\Scripts\Activate.ps1
+# Mac/Linux
+source .venv-1/bin/activate
+```
+
+### 3. Install dependencies
+```bash
+pip install -r requirements_full.txt
+```
+
+### 4. Generate models (required — LightGBM model is too large for GitHub)
+```bash
+python scripts/02_disease_prediction.py
+python scripts/03_severity_classification.py
+```
+
+### 5. Verify everything works
+```bash
 python test_setup.py
 ```
-Expected: `Results: 20/20 passed  ALL GOOD! ✓`
+Expected output: `Results: 20/20 passed  ALL GOOD!`
+
+---
+
+## Running the Scripts
+
+```bash
+# Step 1 — Explore the dataset
+python scripts/01_data_exploration.py
+
+# Step 2 — Train disease prediction models
+python scripts/02_disease_prediction.py
+
+# Step 3 — Train severity classification models
+python scripts/03_severity_classification.py
+
+# Step 4 — Verify the full pipeline
+python test_setup.py
+```
+
+## Integration with SACA Frontend
+
+The trained models are designed for integration with the SACA Flutter app:
+
+- **Input:** 254 binary symptom features (one-hot encoded)
+- **Disease output:** Predicted disease name (e.g. `strep throat`, `pneumonia`)
+- **Severity output:** `Mild` / `Moderate` / `Severe`
+
+Load models in Python:
+```python
+import joblib
+import catboost as cb
+
+# Load disease model
+cat_model = cb.CatBoostClassifier()
+cat_model.load_model("disease_model/models/catboost_model.cbm")
+
+# Load severity model
+lgbm_severity = joblib.load("disease_model/models/lgbm_severity_model.pkl")
+
+# Load encoders
+label_encoder = joblib.load("disease_model/models/label_encoder.pkl")
+label_encoder_severity = joblib.load("disease_model/models/label_encoder_severity.pkl")
+```
+
+---
+
+## Author
+
+**Sovandara Chin**
+Student ID — 104211657
+ML Engineer — Disease Prediction Module
+Swinburne University of Technology
+COS70008 Technology Innovation Research and Project
+
+## Training Environment
+
+### Google Colab (Model Training)
+
+| Property | Value |
+|---|---|
+| Platform | Google Colab |
+| GPU | NVIDIA Tesla T4 (15GB VRAM) |
+| Runtime | Python 3.10 |
+| Training time (CatBoost) | ~8–12 minutes |
+| Training time (LightGBM) | ~3–5 minutes |
+
+> Models were trained on Google Colab T4 GPU for speed.
+> Local CPU inference works fine — no GPU required to run predictions.
+
+### Local machine (for running scripts)
+| Property | Value |
+|---|---|
+| RAM | 16 GB |
+| OS | Windows 11 |
+| GPU | NVIDIA GeForce GTX (local, not used for training) |
