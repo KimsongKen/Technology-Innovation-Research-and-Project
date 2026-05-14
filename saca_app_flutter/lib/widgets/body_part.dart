@@ -45,7 +45,8 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
               part == 'Body' ||
               part == 'Arm' ||
               part == 'Leg' ||
-              part == 'Back',
+              part == 'Back' ||
+              part == 'Hip',
         )
         .toSet();
   }
@@ -59,8 +60,16 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
       }
       widget.session.painLocation
         ..clear()
-        ..addAll(<String>['Head', 'Body', 'Arm', 'Leg', 'Back']
-            .where(_selectedParts.contains));
+        ..addAll(
+          <String>[
+            'Head',
+            'Body',
+            'Arm',
+            'Leg',
+            'Back',
+            'Hip',
+          ].where(_selectedParts.contains),
+        );
     });
     widget.onSelectionChanged();
   }
@@ -136,6 +145,9 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        _buildPartButtons(),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -145,6 +157,7 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
       return const <_BodyZone>[
         _BodyZone('Head', Rect.fromLTWH(0.44, 0.04, 0.12, 0.13)),
         _BodyZone('Back', Rect.fromLTWH(0.41, 0.20, 0.18, 0.34)),
+        _BodyZone('Hip', Rect.fromLTWH(0.42, 0.36, 0.18, 0.16)),
         _BodyZone('Arm', Rect.fromLTWH(0.32, 0.25, 0.07, 0.25)),
         _BodyZone('Arm', Rect.fromLTWH(0.29, 0.47, 0.07, 0.18)),
         _BodyZone('Arm', Rect.fromLTWH(0.61, 0.25, 0.07, 0.25)),
@@ -157,6 +170,7 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
     return const <_BodyZone>[
       _BodyZone('Head', Rect.fromLTWH(0.44, 0.04, 0.12, 0.13)),
       _BodyZone('Body', Rect.fromLTWH(0.41, 0.20, 0.18, 0.34)),
+      _BodyZone('Hip', Rect.fromLTWH(0.42, 0.48, 0.18, 0.16)),
       _BodyZone('Arm', Rect.fromLTWH(0.32, 0.25, 0.07, 0.25)),
       _BodyZone('Arm', Rect.fromLTWH(0.29, 0.47, 0.07, 0.18)),
       _BodyZone('Arm', Rect.fromLTWH(0.61, 0.25, 0.07, 0.25)),
@@ -164,6 +178,40 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
       _BodyZone('Leg', Rect.fromLTWH(0.42, 0.56, 0.07, 0.38)),
       _BodyZone('Leg', Rect.fromLTWH(0.51, 0.56, 0.07, 0.38)),
     ];
+  }
+
+  Widget _buildPartButtons() {
+    final List<String> parts = _view == _BodyView.back
+        ? const <String>['Head', 'Back', 'Arm', 'Leg', 'Hip']
+        : const <String>['Head', 'Body', 'Arm', 'Leg', 'Hip'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 10,
+        runSpacing: 10,
+        children: parts.map((String part) {
+          final bool selected = _selectedParts.contains(part);
+          return FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: selected
+                  ? SACAColors.deepClinicalGreen
+                  : Colors.white,
+              foregroundColor: selected
+                  ? Colors.white
+                  : SACAColors.deepClinicalGreen,
+              side: const BorderSide(color: SACAColors.deepClinicalGreen),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            onPressed: () => _togglePart(part),
+            child: Text(part),
+          );
+        }).toList(),
+      ),
+    );
   }
 
   Widget _buildZone(_BodyZone zone, Size size) {
@@ -195,6 +243,11 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
               box: Rect.fromLTWH(0.76, 0.32, 0.22, 0.08),
             ),
             _BodyCallout(
+              label: 'Hip',
+              anchor: Offset(0.50, 0.50),
+              box: Rect.fromLTWH(0.02, 0.54, 0.22, 0.08),
+            ),
+            _BodyCallout(
               label: 'Arm',
               displayLabel: 'Arms',
               anchor: Offset(0.36, 0.42),
@@ -212,6 +265,11 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
               label: 'Back',
               anchor: Offset(0.50, 0.36),
               box: Rect.fromLTWH(0.76, 0.30, 0.22, 0.08),
+            ),
+            _BodyCallout(
+              label: 'Hip',
+              anchor: Offset(0.50, 0.48),
+              box: Rect.fromLTWH(0.02, 0.56, 0.22, 0.08),
             ),
             _BodyCallout(
               label: 'Head',
@@ -251,10 +309,7 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: SACAColors.deepClinicalGreen,
-              width: 1.6,
-            ),
+            border: Border.all(color: SACAColors.deepClinicalGreen, width: 1.6),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -303,10 +358,7 @@ class _BodyCallout {
 }
 
 class _BodyCalloutPainter extends CustomPainter {
-  const _BodyCalloutPainter({
-    required this.callouts,
-    required this.color,
-  });
+  const _BodyCalloutPainter({required this.callouts, required this.color});
 
   final List<_BodyCallout> callouts;
   final Color color;
