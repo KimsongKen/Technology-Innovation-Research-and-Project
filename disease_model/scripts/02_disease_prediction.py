@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import joblib
@@ -7,12 +8,21 @@ from collections import Counter
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report, f1_score, confusion_matrix
+from sklearn.metrics import classification_report, f1_score
 
 from imblearn.over_sampling import SMOTE
 
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, early_stopping, log_evaluation
+
 from catboost import CatBoostClassifier
+
+
+# =========================
+# 0. Output folder guard
+# FIX: prevents crash if models/ doesn't exist
+# =========================
+
+os.makedirs("models", exist_ok=True)
 
 
 # =========================
@@ -29,13 +39,14 @@ print("Shape:", df.shape)
 # 2. Define target and features
 # =========================
 
-target_disease = "diseases"
+target_disease  = "diseases"
 target_severity = "Severity"
 
 X = df.drop(columns=[target_disease, target_severity])
 y = df[target_disease]
 
-# Clean feature names for LightGBM
+
+# Clean feature names for LightGBM compatibility
 def clean_feature_names(columns):
     cleaned_columns = []
     used_names = set()
@@ -59,40 +70,51 @@ def clean_feature_names(columns):
 
     return cleaned_columns
 
+
 X.columns = clean_feature_names(X.columns)
 
-print("\n===== CLEANED FEATURE NAMES =====")
+print("\n===== CLEANED FEATURE NAMES (first 20) =====")
 print(X.columns.tolist()[:20])
 
-# Group very rare disease classes
+
+# =========================
+# 3. Group rare disease classes
+# FIX: label encoder fitted AFTER grouping
+#      so no unseen class crash at predict time
+# =========================
+
 min_samples_per_class = 10
-disease_counts = y.value_counts()
-rare_diseases = disease_counts[disease_counts < min_samples_per_class].index
-y = y.replace(rare_diseases, "Other_Rare_Disease")
+disease_counts        = y.value_counts()
+rare_diseases         = disease_counts[disease_counts < min_samples_per_class].index
+y                     = y.replace(rare_diseases, "Other_Rare_Disease")
 
 print("\n===== FEATURES AND TARGET =====")
 print("Feature shape:", X.shape)
 print("Target shape:", y.shape)
-print("Original number of disease classes:", df[target_disease].nunique())
-print("Disease classes after rare-class grouping:", y.nunique())
-print("Number of rare disease classes grouped:", len(rare_diseases))
+print("Original disease classes:", df[target_disease].nunique())
+print("Classes after rare-class grouping:", y.nunique())
+print("Rare classes grouped:", len(rare_diseases))
 print("\nTop disease classes after grouping:")
 print(y.value_counts().head(20))
 
 
 # =========================
-# 3. Encode disease target
+# 4. Encode disease target
+# FIX: encoder fitted after grouping
+#      ensures all classes in encoder match training data
 # =========================
 
 label_encoder_disease = LabelEncoder()
-y_encoded = label_encoder_disease.fit_transform(y)
+y_encoded             = label_encoder_disease.fit_transform(y)
 
 print("\n===== ENCODED DISEASE CLASSES =====")
-print(label_encoder_disease.classes_)
+print("Total classes:", len(label_encoder_disease.classes_))
+print("Sample classes:", list(label_encoder_disease.classes_[:5]))
 
 
 # =========================
-# 4. Train / validation / test split
+# 5. Train / validation / test split
+# 70% train | 15% val | 15% test
 # =========================
 
 X_train, X_temp, y_train, y_temp = train_test_split(
@@ -110,111 +132,140 @@ X_val, X_test, y_val, y_test = train_test_split(
 )
 
 print("\n===== DATA SPLIT =====")
-print("Training set:", X_train.shape)
-print("Validation set:", X_val.shape)
-print("Test set:", X_test.shape)
+print("Training set:   ", X_train.shape)
+print("Validation set: ", X_val.shape)
+print("Test set:       ", X_test.shape)
 
 
 # =========================
-# 5. Apply SMOTE on training data only
+# 6. Apply SMOTE on training data only
+# FIX: removed class_weight="balanced" from LightGBM
+#      SMOTE already balances — double balancing causes overprediction of rare diseases
 # =========================
 
-class_counts = Counter(y_train)
+class_counts    = Counter(y_train)
 min_class_count = min(class_counts.values())
 
 print("\n===== CLASS DISTRIBUTION BEFORE SMOTE =====")
 print("Minimum class count:", min_class_count)
 
 if min_class_count > 1:
-    k_neighbors = min(5, min_class_count - 1)
-    smote = SMOTE(random_state=42, k_neighbors=k_neighbors)
+    k_neighbors          = min(5, min_class_count - 1)
+    smote                = SMOTE(random_state=42, k_neighbors=k_neighbors)
     X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
     print("\n===== SMOTE APPLIED =====")
     print("SMOTE k_neighbors:", k_neighbors)
     print("Before SMOTE:", X_train.shape)
-    print("After SMOTE:", X_train_smote.shape)
+    print("After SMOTE: ", X_train_smote.shape)
 else:
     print("\nWARNING: Some classes have only 1 sample. SMOTE skipped.")
     X_train_smote, y_train_smote = X_train, y_train
 
 
 # =========================
-# 6. Train LightGBM model
+# 7. Train LightGBM model
+# FIX 1: removed class_weight="balanced" (SMOTE already balances)
+# FIX 2: added eval_set + early_stopping using validation set
+# FIX 3: increased n_estimators to 500 to match notebook performance
 # =========================
 
 print("\n===== TRAINING LIGHTGBM DISEASE MODEL =====")
 
 lgbm_disease = LGBMClassifier(
     random_state=42,
-    class_weight="balanced",
-    n_estimators=200,
+    n_estimators=500,
     learning_rate=0.05,
-    num_leaves=31
+    num_leaves=31,
+    verbose=-1
 )
 
-lgbm_disease.fit(X_train_smote, y_train_smote)
+lgbm_disease.fit(
+    X_train_smote, y_train_smote,
+    eval_set=[(X_val, y_val)],
+    callbacks=[
+        early_stopping(stopping_rounds=50, verbose=False),
+        log_evaluation(period=50)
+    ]
+)
+
 y_pred_lgbm = lgbm_disease.predict(X_test)
-lgbm_f1 = f1_score(y_test, y_pred_lgbm, average="weighted")
+lgbm_f1     = f1_score(y_test, y_pred_lgbm, average="weighted")
 
 print("\n===== LIGHTGBM RESULTS =====")
-print(classification_report(y_test, y_pred_lgbm,
-    target_names=label_encoder_disease.classes_, zero_division=0))
-print("LightGBM Weighted F1-score:", lgbm_f1)
+print(classification_report(
+    y_test, y_pred_lgbm,
+    target_names=label_encoder_disease.classes_,
+    zero_division=0
+))
+print("LightGBM Weighted F1-score:", round(lgbm_f1, 4))
 
 
 # =========================
-# 7. Train CatBoost model
+# 8. Train CatBoost model
+# FIX 1: increased iterations to 500 to match notebook performance
+# FIX 2: added eval_set + early_stopping_rounds using validation set
+# FIX 3: removed duplicate joblib save (cbm format is sufficient)
 # =========================
 
 print("\n===== TRAINING CATBOOST DISEASE MODEL =====")
+print("  This may take ~10 minutes on CPU...")
 
 cat_disease = CatBoostClassifier(
-    iterations=200,
+    iterations=500,
     learning_rate=0.05,
     depth=6,
     loss_function="MultiClass",
     random_seed=42,
-    verbose=0
+    verbose=100,
+    allow_writing_files=False
 )
 
-cat_disease.fit(X_train_smote, y_train_smote)
+cat_disease.fit(
+    X_train_smote, y_train_smote,
+    eval_set=(X_val, y_val),
+    early_stopping_rounds=50
+)
+
 y_pred_cat = cat_disease.predict(X_test).flatten()
-cat_f1 = f1_score(y_test, y_pred_cat, average="weighted")
+cat_f1     = f1_score(y_test, y_pred_cat, average="weighted")
 
 print("\n===== CATBOOST RESULTS =====")
-print(classification_report(y_test, y_pred_cat,
-    target_names=label_encoder_disease.classes_, zero_division=0))
-print("CatBoost Weighted F1-score:", cat_f1)
+print(classification_report(
+    y_test, y_pred_cat,
+    target_names=label_encoder_disease.classes_,
+    zero_division=0
+))
+print("CatBoost Weighted F1-score:", round(cat_f1, 4))
 
 
 # =========================
-# 8. Compare models
+# 9. Compare models
 # =========================
 
 print("\n===== MODEL COMPARISON =====")
-print("LightGBM Weighted F1-score:", lgbm_f1)
-print("CatBoost Weighted F1-score:", cat_f1)
+print(f"{'Model':<15} {'Weighted F1':>12}")
+print("-" * 30)
+print(f"{'LightGBM':<15} {lgbm_f1*100:>11.2f}%")
+print(f"{'CatBoost':<15} {cat_f1*100:>11.2f}%")
 
-if lgbm_f1 >= cat_f1:
-    best_model_name = "LightGBM"
-else:
-    best_model_name = "CatBoost"
+best_model_name = "CatBoost" if cat_f1 >= lgbm_f1 else "LightGBM"
+print("\nBest model:", best_model_name)
 
-print("Best model:", best_model_name)
 
 # =========================
-# 9. Save models and encoder
+# 10. Save models and encoder
+# FIX: removed duplicate catboost_disease_model.pkl save
+#      cbm format is the correct native CatBoost format
 # =========================
 
 joblib.dump(lgbm_disease,          "models/lightgbm_model.pkl")
 cat_disease.save_model(            "models/catboost_model.cbm")
-joblib.dump(cat_disease,           "models/catboost_disease_model.pkl")
 joblib.dump(label_encoder_disease, "models/label_encoder.pkl")
 joblib.dump(X.columns.tolist(),    "models/disease_feature_columns.pkl")
 
 print("\n===== FILES SAVED =====")
-print("Saved LightGBM model:    models/lightgbm_model.pkl")
-print("Saved CatBoost model:    models/catboost_model.cbm")
-print("Saved CatBoost model:    models/catboost_disease_model.pkl")
-print("Saved label encoder:     models/label_encoder.pkl")
-print("Saved feature columns:   models/disease_feature_columns.pkl")
+print("Saved LightGBM model:   models/lightgbm_model.pkl")
+print("Saved CatBoost model:   models/catboost_model.cbm")
+print("Saved label encoder:    models/label_encoder.pkl")
+print("Saved feature columns:  models/disease_feature_columns.pkl")
+print("\n===== DISEASE PREDICTION PIPELINE COMPLETE =====")
