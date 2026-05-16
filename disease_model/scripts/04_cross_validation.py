@@ -8,6 +8,8 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import f1_score, make_scorer
 from lightgbm import LGBMClassifier
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import SMOTE
 
 # =========================
 # 0. Output folder guard
@@ -92,18 +94,24 @@ print(f"Total samples:     {X_severity.shape[0]:,}")
 
 
 # =========================
-# 5. Define lightweight LightGBM models
-# NOTE: Using n_estimators=200 for speed
-#       Full model uses 500 — CV is for stability check only
+# 5. Filter rare classes for CV
+# Removes classes with < 5 samples
+# so every fold has at least 1 sample per class
 # =========================
 
-lgbm_disease = LGBMClassifier(
-    random_state=42,
-    n_estimators=200,
-    learning_rate=0.05,
-    num_leaves=31,
-    verbose=-1
-)
+from collections import Counter
+
+# Remove classes with fewer than 5 samples
+# so every fold has at least 1 sample per class
+class_counts    = Counter(y_disease_enc)
+valid_classes   = [cls for cls, count in class_counts.items() if count >= 5]
+valid_mask      = np.isin(y_disease_enc, valid_classes)
+X_disease_cv    = X_disease[valid_mask]
+y_disease_cv    = y_disease_enc[valid_mask]
+
+print(f"\n===== FILTERING RARE CLASSES FOR CV =====")
+print(f"Samples after filtering: {X_disease_cv.shape[0]:,}")
+print(f"Classes after filtering: {len(set(y_disease_cv))}")
 
 lgbm_severity = LGBMClassifier(
     random_state=42,
@@ -113,66 +121,93 @@ lgbm_severity = LGBMClassifier(
     verbose=-1
 )
 
-
 # =========================
 # 6. Cross-validation — Disease Prediction
+# FIX: manual loop instead of cross_val_score
+#      fixes sklearn 1.8.0 + LightGBM 4.6.0 compatibility issue
 # =========================
 
 print("\n===== CROSS-VALIDATION: DISEASE PREDICTION =====")
-print("Running 5-fold CV on LightGBM (n_estimators=200)...")
-print("This may take ~5 minutes...")
+print("Running 5-fold CV manually (n_estimators=200)...")
+print("This may take ~10 minutes...")
 
-cv       = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-scorer   = make_scorer(f1_score, average='weighted')
+cv     = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scorer = make_scorer(f1_score, average='weighted')
+disease_score_list = []
 
-disease_scores = cross_val_score(
-    lgbm_disease,
-    X_disease, y_disease_enc,
-    cv=cv,
-    scoring=scorer,
-    n_jobs=-1   # uses all CPU cores
-)
+for i, (train_idx, test_idx) in enumerate(cv.split(X_disease, y_disease_enc)):
+    X_train = X_disease.iloc[train_idx].values  # ← .values fixes compatibility
+    X_test  = X_disease.iloc[test_idx].values
+    y_train = y_disease_enc[train_idx]
+    y_test  = y_disease_enc[test_idx]
 
-print(f"\nFold scores:         {[round(s, 4) for s in disease_scores]}")
-print(f"Mean F1:             {disease_scores.mean():.4f} ({disease_scores.mean()*100:.2f}%)")
-print(f"Std deviation:       ± {disease_scores.std():.4f}")
-print(f"Min F1:              {disease_scores.min():.4f}")
-print(f"Max F1:              {disease_scores.max():.4f}")
+    model = LGBMClassifier(
+        random_state=42,
+        n_estimators=200,
+        learning_rate=0.05,
+        num_leaves=31,
+        verbose=-1
+    )
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+    score = f1_score(y_test, preds, average='weighted')
+    disease_score_list.append(score)
+    print(f"  Fold {i+1}: {score:.4f}")
 
-# Stability check
+disease_scores = np.array(disease_score_list)
+
+print(f"\nFold scores:   {[round(s, 4) for s in disease_scores]}")
+print(f"Mean F1:       {disease_scores.mean():.4f} ({disease_scores.mean()*100:.2f}%)")
+print(f"Std deviation: ± {disease_scores.std():.4f}")
+print(f"Min F1:        {disease_scores.min():.4f}")
+print(f"Max F1:        {disease_scores.max():.4f}")
+
 if disease_scores.std() < 0.02:
-    print("Stability:           STABLE ✓ (std < 0.02)")
+    print("Stability:     STABLE ✓ (std < 0.02)")
 else:
-    print("Stability:           UNSTABLE ✗ (std >= 0.02 — check for overfitting)")
-
+    print("Stability:     UNSTABLE ✗ (std >= 0.02)")
 
 # =========================
 # 7. Cross-validation — Severity Classification
 # =========================
 
 print("\n===== CROSS-VALIDATION: SEVERITY CLASSIFICATION =====")
-print("Running 5-fold CV on LightGBM (n_estimators=200)...")
+print("Running 5-fold CV manually (n_estimators=200)...")
 print("This may take ~2 minutes...")
 
-severity_scores = cross_val_score(
-    lgbm_severity,
-    X_severity, y_severity_enc,
-    cv=cv,
-    scoring=scorer,
-    n_jobs=-1
-)
+severity_score_list = []
 
-print(f"\nFold scores:         {[round(s, 4) for s in severity_scores]}")
-print(f"Mean F1:             {severity_scores.mean():.4f} ({severity_scores.mean()*100:.2f}%)")
-print(f"Std deviation:       ± {severity_scores.std():.4f}")
-print(f"Min F1:              {severity_scores.min():.4f}")
-print(f"Max F1:              {severity_scores.max():.4f}")
+for i, (train_idx, test_idx) in enumerate(cv.split(X_severity, y_severity_enc)):
+    X_train = X_severity.iloc[train_idx].values  # ← .values fixes compatibility
+    X_test  = X_severity.iloc[test_idx].values
+    y_train = y_severity_enc[train_idx]
+    y_test  = y_severity_enc[test_idx]
+
+    model = LGBMClassifier(
+        random_state=42,
+        n_estimators=200,
+        learning_rate=0.05,
+        num_leaves=31,
+        verbose=-1
+    )
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+    score = f1_score(y_test, preds, average='weighted')
+    severity_score_list.append(score)
+    print(f"  Fold {i+1}: {score:.4f}")
+
+severity_scores = np.array(severity_score_list)
+
+print(f"\nFold scores:   {[round(s, 4) for s in severity_scores]}")
+print(f"Mean F1:       {severity_scores.mean():.4f} ({severity_scores.mean()*100:.2f}%)")
+print(f"Std deviation: ± {severity_scores.std():.4f}")
+print(f"Min F1:        {severity_scores.min():.4f}")
+print(f"Max F1:        {severity_scores.max():.4f}")
 
 if severity_scores.std() < 0.02:
-    print("Stability:           STABLE ✓ (std < 0.02)")
+    print("Stability:     STABLE ✓ (std < 0.02)")
 else:
-    print("Stability:           UNSTABLE ✗ (std >= 0.02 — check for overfitting)")
-
+    print("Stability:     UNSTABLE ✗ (std >= 0.02)")
 
 # =========================
 # 8. Summary
