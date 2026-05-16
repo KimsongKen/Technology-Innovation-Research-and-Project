@@ -1,13 +1,23 @@
+import os
 import pandas as pd
+import numpy as np
 import joblib
 import re
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 import sklearn.metrics
+from sklearn.model_selection import train_test_split
 
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier, early_stopping, log_evaluation
 from catboost import CatBoostClassifier
+
+
+# =========================
+# 0. Output folder guard
+# FIX: prevents crash if models/ doesn't exist
+# =========================
+
+os.makedirs("models", exist_ok=True)
+
 
 # =========================
 # 1. Load dataset
@@ -23,14 +33,14 @@ print("Shape:", df.shape)
 # 2. Define target and features
 # =========================
 
-target_disease = "diseases"
+target_disease  = "diseases"
 target_severity = "Severity"
 
 X = df.drop(columns=[target_disease, target_severity])
 y = df[target_severity]
 
 
-# Clean feature names for LightGBM
+# Clean feature names for LightGBM compatibility
 def clean_feature_names(columns):
     cleaned_columns = []
     used_names = set()
@@ -66,17 +76,23 @@ print(y.value_counts())
 
 # =========================
 # 3. Encode severity target
+# FIX: replaced LabelEncoder with explicit ordinal map
+#      LabelEncoder assigns alphabetical order (accidental)
+#      This enforces correct clinical order: Mild=0, Moderate=1, Severe=2
 # =========================
 
-label_encoder_severity = LabelEncoder()
-y_encoded = label_encoder_severity.fit_transform(y)
+severity_map = {'Mild': 0, 'Moderate': 1, 'Severe': 2}
+y_encoded    = y.map(severity_map).values
+class_names  = ['Mild', 'Moderate', 'Severe']  # for reports
 
 print("\n===== ENCODED SEVERITY CLASSES =====")
-print(label_encoder_severity.classes_)
+print("Encoding used:", severity_map)
+print("Order confirmed: Mild=0, Moderate=1, Severe=2")
 
 
 # =========================
 # 4. Train / validation / test split
+# 70% train | 15% val | 15% test
 # =========================
 
 X_train, X_temp, y_train, y_temp = train_test_split(
@@ -94,16 +110,22 @@ X_val, X_test, y_val, y_test = train_test_split(
 )
 
 print("\n===== DATA SPLIT =====")
-print("Training set:", X_train.shape)
-print("Validation set:", X_val.shape)
-print("Test set:", X_test.shape)
+print("Training set:   ", X_train.shape)
+print("Validation set: ", X_val.shape)
+print("Test set:       ", X_test.shape)
+
+
+# =========================
+# 5. Class balance check
+# Severity is ~33% each so SMOTE not needed
+# =========================
 
 print("\n===== CLASS BALANCE CHECK =====")
+training_class_counts = pd.Series(y_train).map(
+    {v: k for k, v in severity_map.items()}
+).value_counts()
 
-y_train_labels = label_encoder_severity.inverse_transform(y_train)
-training_class_counts = pd.Series(y_train_labels, name="Severity").value_counts()
-
-print("Training severity distribution before modelling:")
+print("Training severity distribution:")
 print(training_class_counts)
 
 imbalance_ratio = training_class_counts.max() / training_class_counts.min()
@@ -112,12 +134,7 @@ print(f"Imbalance ratio: {imbalance_ratio:.3f}")
 if imbalance_ratio <= 1.5:
     print("Dataset is already balanced. SMOTE is not applied.")
 else:
-    print("Dataset is imbalanced. SMOTE may be considered only on the training set.")
-
-
-# =========================
-# 5. Train directly (no SMOTE needed)
-# =========================
+    print("Dataset is imbalanced. Consider SMOTE on training set.")
 
 print("\n===== DATA IS BALANCED =====")
 print("No SMOTE required - using original training data")
@@ -126,93 +143,119 @@ print("Training set:", X_train.shape)
 
 # =========================
 # 6. Train LightGBM severity model
+# FIX 1: increased n_estimators from 200 to 500
+# FIX 2: added eval_set + early_stopping using validation set
 # =========================
 
 print("\n===== TRAINING LIGHTGBM SEVERITY MODEL =====")
 
 lgbm_severity = LGBMClassifier(
     random_state=42,
-    n_estimators=200,
+    n_estimators=500,
     learning_rate=0.05,
-    num_leaves=31
+    num_leaves=31,
+    verbose=-1
 )
 
-lgbm_severity.fit(X_train, y_train)
+lgbm_severity.fit(
+    X_train, y_train,
+    eval_set=[(X_val, y_val)],
+    callbacks=[
+        early_stopping(stopping_rounds=50, verbose=False),
+        log_evaluation(period=50)
+    ]
+)
+
 y_pred_lgbm = lgbm_severity.predict(X_test)
-lgbm_f1 = sklearn.metrics.f1_score(y_test, y_pred_lgbm, average="weighted")
+lgbm_f1     = sklearn.metrics.f1_score(y_test, y_pred_lgbm, average="weighted")
 
 print("\n===== LIGHTGBM SEVERITY RESULTS =====")
-print(sklearn.metrics.classification_report(y_test, y_pred_lgbm,
-    target_names=label_encoder_severity.classes_, zero_division=0))
-print("LightGBM Weighted F1-score:", lgbm_f1)
+print(sklearn.metrics.classification_report(
+    y_test, y_pred_lgbm,
+    target_names=class_names,
+    zero_division=0
+))
+print("LightGBM Weighted F1-score:", round(lgbm_f1, 4))
 
 
 # =========================
 # 7. Train CatBoost severity model
+# FIX 1: increased iterations from 200 to 500
+# FIX 2: added eval_set + early_stopping_rounds using validation set
 # =========================
 
 print("\n===== TRAINING CATBOOST SEVERITY MODEL =====")
 
 cat_severity = CatBoostClassifier(
-    iterations=200,
+    iterations=500,
     learning_rate=0.05,
     depth=6,
     loss_function="MultiClass",
     random_seed=42,
     allow_writing_files=False,
-    verbose=0
+    verbose=100
 )
 
-cat_severity.fit(X_train, y_train)
+cat_severity.fit(
+    X_train, y_train,
+    eval_set=(X_val, y_val),
+    early_stopping_rounds=50
+)
+
 y_pred_cat = cat_severity.predict(X_test).flatten()
-cat_f1 = sklearn.metrics.f1_score(y_test, y_pred_cat, average="weighted")
+cat_f1     = sklearn.metrics.f1_score(y_test, y_pred_cat, average="weighted")
 
 print("\n===== CATBOOST SEVERITY RESULTS =====")
-print(sklearn.metrics.classification_report(y_test, y_pred_cat,
-    target_names=label_encoder_severity.classes_, zero_division=0))
-print("CatBoost Weighted F1-score:", cat_f1)
+print(sklearn.metrics.classification_report(
+    y_test, y_pred_cat,
+    target_names=class_names,
+    zero_division=0
+))
+print("CatBoost Weighted F1-score:", round(cat_f1, 4))
 
 
 # =========================
 # 8. Severe recall calculation
+# FIX: changed average="macro" to average=None
+#      average="macro" with single label gives wrong result
+#      average=None returns per-class array, we take index [2] for Severe
 # =========================
 
-severity_classes = list(label_encoder_severity.classes_)
-print("\n===== SEVERE RECALL =====")
-print("Severity classes:", severity_classes)
+severe_index = severity_map['Severe']  # = 2
 
-severe_index = [
-    i for i, label in enumerate(severity_classes)
-    if label.lower() == "severe"
-][0]
+print("\n===== SEVERE RECALL =====")
+print("Severe class index:", severe_index)
 
 lgbm_severe_recall = sklearn.metrics.recall_score(
     y_test, y_pred_lgbm,
     labels=[severe_index],
-    average="macro",
+    average=None,
     zero_division=0
-)
+)[0]
 
 cat_severe_recall = sklearn.metrics.recall_score(
     y_test, y_pred_cat,
     labels=[severe_index],
-    average="macro",
+    average=None,
     zero_division=0
-)
+)[0]
 
-print("LightGBM Recall for Severe cases:", lgbm_severe_recall)
-print("CatBoost Recall for Severe cases:", cat_severe_recall)
+print("LightGBM Recall for Severe cases:", round(lgbm_severe_recall, 4))
+print("CatBoost Recall for Severe cases:", round(cat_severe_recall, 4))
 
 
 # =========================
 # 9. Compare models
+# Priority: severe recall first, F1 second
+# Clinical reasoning: missing a severe case is more dangerous
+#                     than overall accuracy
 # =========================
 
 print("\n===== MODEL COMPARISON =====")
-print("LightGBM Weighted F1-score:", lgbm_f1)
-print("CatBoost Weighted F1-score:", cat_f1)
-print("LightGBM Severe Recall:", lgbm_severe_recall)
-print("CatBoost Severe Recall:", cat_severe_recall)
+print(f"{'Model':<15} {'Weighted F1':>12} {'Severe Recall':>15}")
+print("-" * 45)
+print(f"{'LightGBM':<15} {lgbm_f1*100:>11.2f}% {lgbm_severe_recall*100:>14.2f}%")
+print(f"{'CatBoost':<15} {cat_f1*100:>11.2f}% {cat_severe_recall*100:>14.2f}%")
 
 if cat_severe_recall > lgbm_severe_recall:
     best_model_name = "CatBoost"
@@ -221,20 +264,23 @@ elif cat_severe_recall < lgbm_severe_recall:
 else:
     best_model_name = "CatBoost" if cat_f1 >= lgbm_f1 else "LightGBM"
 
-print("Best severity model:", best_model_name)
+print("\nBest severity model:", best_model_name)
 
 
 # =========================
 # 10. Save models and encoder
+# FIX: replaced label_encoder_severity.pkl with severity_map.pkl
+#      severity_map is the correct decoder for ordinal encoding
 # =========================
 
 joblib.dump(lgbm_severity,          "models/lgbm_severity_model.pkl")
 joblib.dump(cat_severity,           "models/catboost_severity_model.pkl")
-joblib.dump(label_encoder_severity, "models/label_encoder_severity.pkl")
+joblib.dump(severity_map,           "models/severity_map.pkl")
 joblib.dump(X.columns.tolist(),     "models/severity_feature_columns.pkl")
 
 print("\n===== FILES SAVED =====")
 print("Saved LightGBM severity model:  models/lgbm_severity_model.pkl")
 print("Saved CatBoost severity model:  models/catboost_severity_model.pkl")
-print("Saved severity label encoder:   models/label_encoder_severity.pkl")
+print("Saved severity map:             models/severity_map.pkl")
 print("Saved feature columns:          models/severity_feature_columns.pkl")
+print("\n===== SEVERITY CLASSIFICATION PIPELINE COMPLETE =====")
