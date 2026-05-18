@@ -42,7 +42,8 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
         .where(
           (String part) =>
               part == 'Head' ||
-              part == 'Body' ||
+              part == 'Chest' ||
+              part == 'Abdominal' ||
               part == 'Arm' ||
               part == 'Leg' ||
               part == 'Back' ||
@@ -63,7 +64,8 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
         ..addAll(
           <String>[
             'Head',
-            'Body',
+            'Chest',
+            'Abdominal',
             'Arm',
             'Leg',
             'Back',
@@ -169,8 +171,9 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
 
     return const <_BodyZone>[
       _BodyZone('Head', Rect.fromLTWH(0.44, 0.04, 0.12, 0.13)),
-      _BodyZone('Body', Rect.fromLTWH(0.41, 0.20, 0.18, 0.34)),
-      _BodyZone('Hip', Rect.fromLTWH(0.42, 0.48, 0.18, 0.16)),
+      _BodyZone('Chest', Rect.fromLTWH(0.41, 0.20, 0.18, 0.17)),
+      _BodyZone('Abdominal', Rect.fromLTWH(0.41, 0.35, 0.18, 0.11)),
+      _BodyZone('Hip', Rect.fromLTWH(0.41, 0.39, 0.18, 0.12)),
       _BodyZone('Arm', Rect.fromLTWH(0.32, 0.25, 0.07, 0.25)),
       _BodyZone('Arm', Rect.fromLTWH(0.29, 0.47, 0.07, 0.18)),
       _BodyZone('Arm', Rect.fromLTWH(0.61, 0.25, 0.07, 0.25)),
@@ -183,7 +186,7 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
   Widget _buildPartButtons() {
     final List<String> parts = _view == _BodyView.back
         ? const <String>['Head', 'Back', 'Arm', 'Leg', 'Hip']
-        : const <String>['Head', 'Body', 'Arm', 'Leg', 'Hip'];
+        : const <String>['Head', 'Chest', 'Abdominal', 'Arm', 'Leg', 'Hip'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -238,13 +241,18 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
               box: Rect.fromLTWH(0.02, 0.06, 0.22, 0.08),
             ),
             _BodyCallout(
-              label: 'Body',
-              anchor: Offset(0.50, 0.36),
-              box: Rect.fromLTWH(0.76, 0.32, 0.22, 0.08),
+              label: 'Chest',
+              anchor: Offset(0.50, 0.26),
+              box: Rect.fromLTWH(0.76, 0.24, 0.22, 0.08),
+            ),
+            _BodyCallout(
+              label: 'Abdominal',
+              anchor: Offset(0.50, 0.42),
+              box: Rect.fromLTWH(0.76, 0.44, 0.22, 0.08),
             ),
             _BodyCallout(
               label: 'Hip',
-              anchor: Offset(0.50, 0.50),
+              anchor: Offset(0.50, 0.47),
               box: Rect.fromLTWH(0.02, 0.54, 0.22, 0.08),
             ),
             _BodyCallout(
@@ -269,7 +277,7 @@ class _InteractiveBodyWidgetState extends State<InteractiveBodyWidget> {
             _BodyCallout(
               label: 'Hip',
               anchor: Offset(0.50, 0.48),
-              box: Rect.fromLTWH(0.02, 0.56, 0.22, 0.08),
+              box: Rect.fromLTWH(0.76, 0.42, 0.22, 0.08),
             ),
             _BodyCallout(
               label: 'Head',
