@@ -1,0 +1,27 @@
+{
+  "config": {
+    "runs": 120
+  },
+  "single_patient_symptom_count": 2,
+  "models": {
+    "ExtraNGvboost": {
+      "setup_time_seconds": 0.46896360000027926,
+      "mean_ms": 56.30595333335956,
+      "median_ms": 54.745850000017526,
+      "p95_ms": 68.1789000000208,
+      "min_ms": 44.849599999906786,
+      "max_ms": 104.66929999984131,
+      "peak_rss_mb": 458.66015625
+    },
+    "CatBoost": {
+      "setup_time_seconds": 14.075591700000587,
+      "mean_ms": 6.265304166655976,
+      "median_ms": 6.083650000164198,
+      "p95_ms": 7.744000000457163,
+      "min_ms": 5.12579999940499,
+      "max_ms": 10.330799999792362,
+      "peak_rss_mb": 535.8984375
+    }
+  },
+  "winner": "CatBoost"
+}

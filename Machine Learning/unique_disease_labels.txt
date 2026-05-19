@@ -1,0 +1,211 @@
+abdominal aortic aneurysm
+abdominal hernia
+acne
+acute bronchitis
+acute kidney injury
+acute otitis media
+acute pancreatitis
+acute sinusitis
+alcohol abuse
+alcoholic liver disease
+allergy
+alopecia
+alzheimer disease
+amyotrophic lateral sclerosis (als)
+anemia
+angina
+anxiety
+aplastic anemia
+appendicitis
+arthritis of the hip
+asthma
+athlete's foot
+atrial fibrillation
+attention deficit hyperactivity disorder (adhd)
+bell palsy
+bipolar disorder
+bladder cancer
+blepharitis
+bone cancer
+brain cancer
+breast cancer
+burn
+bursitis
+callus
+cardiac arrest
+cardiomyopathy
+cataract
+celiac disease
+cerebral edema
+cervical cancer
+chickenpox
+chlamydia
+chronic back pain
+chronic kidney disease
+chronic obstructive pulmonary disease (copd)
+cirrhosis
+cold sore
+colorectal cancer
+common cold
+complex regional pain syndrome
+conjunctivitis
+conjunctivitis due to allergy
+contact dermatitis
+coronary atherosclerosis
+crohn disease
+cystitis
+deep vein thrombosis (dvt)
+delirium
+dementia
+dengue fever
+dental caries
+depression
+diabetic ketoacidosis
+diabetic retinopathy
+diaper rash
+diverticulitis
+drug abuse
+ear wax impaction
+ectopic pregnancy
+eczema
+encephalitis
+endocarditis
+endometriosis
+epilepsy
+esophagitis
+essential tremor
+fibromyalgia
+flu
+food allergy
+fungal infection of the hair
+fungal infection of the skin
+gallstone
+gastroesophageal reflux disease (gerd)
+gastrointestinal hemorrhage
+gestational diabetes
+glaucoma
+gonorrhea
+gout
+guillain barre syndrome
+gum disease
+head injury
+heart attack
+heart failure
+heat exhaustion
+hemiplegia
+hemophilia
+hemorrhoids
+hepatic encephalopathy
+herniated disk
+hiatal hernia
+hypercholesterolemia
+hyperkalemia
+hypoglycemia
+hyponatremia
+hypothyroidism
+impetigo
+indigestion
+infectious gastroenteritis
+ingrown toe nail
+inguinal hernia
+injury to the arm
+injury to the leg
+injury to the spinal cord
+insect bite
+interstitial lung disease
+intestinal obstruction
+intracerebral hemorrhage
+iron deficiency anemia
+irritable bowel syndrome
+ischemic heart disease
+kidney cancer
+kidney failure
+kidney stone
+lactose intolerance
+laryngitis
+lateral epicondylitis (tennis elbow)
+leukemia
+liver cancer
+lumbago
+lung cancer
+lymphoma
+macular degeneration
+malaria
+malignant hypertension
+marijuana abuse
+melanoma
+meniere disease
+meningitis
+metastatic cancer
+migraine
+molluscum contagiosum
+multiple sclerosis
+mumps
+muscle spasm
+myopia
+necrotizing fasciitis
+neonatal jaundice
+neuralgia
+noninfectious gastroenteritis
+nose disorder
+obsessive compulsive disorder (ocd)
+obstructive sleep apnea (osa)
+onychomycosis
+osteoarthritis
+osteoporosis
+otitis media
+ovarian cancer
+ovarian cyst
+pancreatic cancer
+panic disorder
+parkinson disease
+pelvic inflammatory disease
+pericarditis
+peripheral nerve disorder
+peritonitis
+pharyngitis
+pneumonia
+pneumothorax
+post-traumatic stress disorder (ptsd)
+preeclampsia
+pregnancy
+prostate cancer
+psoriasis
+pulmonary embolism
+pulmonary fibrosis
+pulmonary hypertension
+rheumatoid arthritis
+rotator cuff injury
+scarlet fever
+schizophrenia
+sciatica
+seasonal allergies (hay fever)
+seborrheic dermatitis
+sepsis
+shingles (herpes zoster)
+sickle cell crisis
+spontaneous abortion
+sprain or strain
+stomach cancer
+strep throat
+stroke
+stye
+subarachnoid hemorrhage
+syphilis
+systemic lupus erythematosis (sle)
+tendinitis
+tension headache
+thrombocytopenia
+tonsillitis
+tooth abscess
+transient ischemic attack
+tuberculosis
+ulcerative colitis
+urinary tract infection
+vaginal yeast infection
+vaginitis
+viral hepatitis
+viral warts
+vulvodynia
+whooping cough
+yeast infection

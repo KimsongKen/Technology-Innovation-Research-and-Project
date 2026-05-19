@@ -1,0 +1,66 @@
+{
+  "config": {
+    "max_cases": 80,
+    "focus": "Severity explainability"
+  },
+  "evaluated_cases": 80,
+  "models": {
+    "ExtraNGvboost": {
+      "stability_jaccard": 0.09078059071729958,
+      "mean_top3_delta_severe_prob": 0.08344351464435146,
+      "sample_case": [
+        {
+          "symptom": "fainting",
+          "delta_severe_prob": 0.469
+        },
+        {
+          "symptom": "nausea",
+          "delta_severe_prob": 0.039000000000000035
+        }
+      ],
+      "native_global_top3": [
+        {
+          "symptom": "weakness",
+          "importance": 0.0988244830865019
+        },
+        {
+          "symptom": "headache",
+          "importance": 0.04438261471133959
+        },
+        {
+          "symptom": "sharp chest pain",
+          "importance": 0.034929947572777946
+        }
+      ]
+    },
+    "CatBoost": {
+      "stability_jaccard": 0.08922995780590719,
+      "mean_top3_delta_severe_prob": 0.06295397489539747,
+      "sample_case": [
+        {
+          "symptom": "fainting",
+          "delta_severe_prob": 0.33799999999999997
+        },
+        {
+          "symptom": "nausea",
+          "delta_severe_prob": 0.11199999999999999
+        }
+      ],
+      "native_global_top3": [
+        {
+          "symptom": "weakness",
+          "importance": 10.029262115835495
+        },
+        {
+          "symptom": "headache",
+          "importance": 5.470713435821892
+        },
+        {
+          "symptom": "sharp chest pain",
+          "importance": 3.4602612455196953
+        }
+      ]
+    }
+  },
+  "winner": "ExtraNGvboost"
+}

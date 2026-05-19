@@ -1,0 +1,116 @@
+{
+  "config": {
+    "max_samples": 3,
+    "random_seed": 42,
+    "sbert_model": "all-MiniLM-L6-v2",
+    "sbert_similarity_threshold": 0.35
+  },
+  "sample_count": 3,
+  "clean_metrics": {
+    "ExtraNGvboost": {
+      "disease": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severity": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severe_recall": 0.0
+    },
+    "CatBoost": {
+      "disease": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severity": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severe_recall": 0.0
+    }
+  },
+  "noisy_metrics": {
+    "ExtraNGvboost": {
+      "disease": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severity": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severe_recall": 0.0
+    },
+    "CatBoost": {
+      "disease": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severity": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "precision_weighted": 1.0,
+        "recall_weighted": 1.0,
+        "f1_weighted": 1.0
+      },
+      "severe_recall": 0.0
+    }
+  },
+  "drops": {
+    "ExtraNGvboost": {
+      "disease_f1_weighted_drop": 0.0,
+      "severity_f1_weighted_drop": 0.0,
+      "severe_recall_drop": 0.0,
+      "combined_drop_score": 0.0
+    },
+    "CatBoost": {
+      "disease_f1_weighted_drop": 0.0,
+      "severity_f1_weighted_drop": 0.0,
+      "severe_recall_drop": 0.0,
+      "combined_drop_score": 0.0
+    }
+  },
+  "winner": "ExtraNGvboost",
+  "mapping_quality": {
+    "avg_mapped_symptom_count": 5.666666666666667,
+    "avg_clean_symptom_count": 6.0
+  }
+}
