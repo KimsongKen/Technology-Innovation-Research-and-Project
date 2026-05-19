@@ -1,0 +1,752 @@
+{
+  "source_dataset": "c:\\Users\\kimso\\Desktop\\Technology Project\\archive\\Model_catboost\\saca_final_dataset_self.csv",
+  "selection_criteria": "Top 25 most frequent disease labels by count",
+  "total_unique_diseases": 211,
+  "common_disease_samples": [
+    {
+      "disease": "gastrointestinal hemorrhage",
+      "count": 635,
+      "example_symptom_sets": [
+        [
+          "blood in stool",
+          "sharp abdominal pain",
+          "nausea",
+          "vomiting blood",
+          "weakness",
+          "melena",
+          "rectal bleeding"
+        ],
+        [
+          "sharp abdominal pain",
+          "vomiting",
+          "nausea",
+          "diarrhea",
+          "weakness",
+          "changes in stool appearance",
+          "rectal bleeding"
+        ],
+        [
+          "nausea",
+          "vomiting blood",
+          "rectal bleeding"
+        ]
+      ]
+    },
+    {
+      "disease": "acute pancreatitis",
+      "count": 628,
+      "example_symptom_sets": [
+        [
+          "sharp chest pain",
+          "abusing alcohol",
+          "vomiting",
+          "diarrhea",
+          "burning abdominal pain",
+          "lower body pain",
+          "upper abdominal pain",
+          "hemoptysis"
+        ],
+        [
+          "sharp abdominal pain",
+          "vomiting",
+          "diarrhea",
+          "back pain",
+          "upper abdominal pain"
+        ],
+        [
+          "sharp chest pain",
+          "abusing alcohol",
+          "sharp abdominal pain",
+          "vomiting",
+          "nausea",
+          "burning abdominal pain",
+          "side pain",
+          "upper abdominal pain",
+          "hemoptysis"
+        ]
+      ]
+    },
+    {
+      "disease": "pneumonia",
+      "count": 628,
+      "example_symptom_sets": [
+        [
+          "shortness of breath",
+          "sharp chest pain",
+          "sore throat",
+          "cough",
+          "nasal congestion",
+          "fever"
+        ],
+        [
+          "sharp chest pain",
+          "sore throat",
+          "nasal congestion",
+          "vomiting",
+          "wheezing",
+          "weakness",
+          "difficulty breathing",
+          "chills"
+        ],
+        [
+          "shortness of breath",
+          "sore throat",
+          "cough",
+          "wheezing",
+          "weakness",
+          "difficulty breathing",
+          "coryza"
+        ]
+      ]
+    },
+    {
+      "disease": "hypoglycemia",
+      "count": 602,
+      "example_symptom_sets": [
+        [
+          "depressive or psychotic symptoms",
+          "abnormal involuntary movements",
+          "fainting",
+          "feeling ill",
+          "nausea",
+          "sleepiness"
+        ],
+        [
+          "depressive or psychotic symptoms",
+          "abnormal involuntary movements",
+          "fainting",
+          "problems with movement",
+          "seizures",
+          "sweating"
+        ],
+        [
+          "dizziness",
+          "problems with movement",
+          "decreased appetite",
+          "sleepiness"
+        ]
+      ]
+    },
+    {
+      "disease": "appendicitis",
+      "count": 456,
+      "example_symptom_sets": [
+        [
+          "nausea",
+          "diarrhea",
+          "lower abdominal pain",
+          "decreased appetite",
+          "fever",
+          "stomach bloating"
+        ],
+        [
+          "nausea",
+          "upper abdominal pain"
+        ],
+        [
+          "vomiting",
+          "nausea",
+          "diarrhea",
+          "fever",
+          "upper abdominal pain"
+        ]
+      ]
+    },
+    {
+      "disease": "multiple sclerosis",
+      "count": 441,
+      "example_symptom_sets": [
+        [
+          "dizziness",
+          "abnormal involuntary movements",
+          "headache",
+          "loss of sensation",
+          "paresthesia",
+          "fatigue"
+        ],
+        [
+          "abnormal involuntary movements",
+          "headache",
+          "weakness",
+          "loss of sensation",
+          "focal weakness",
+          "paresthesia",
+          "fatigue"
+        ],
+        [
+          "dizziness",
+          "abnormal involuntary movements",
+          "headache",
+          "problems with movement",
+          "weakness",
+          "loss of sensation",
+          "disturbance of memory",
+          "fatigue"
+        ]
+      ]
+    },
+    {
+      "disease": "heart failure",
+      "count": 439,
+      "example_symptom_sets": [
+        [
+          "chest tightness",
+          "leg swelling",
+          "weakness"
+        ],
+        [
+          "palpitations",
+          "cough",
+          "weakness",
+          "hurts to breath"
+        ],
+        [
+          "shortness of breath",
+          "chest tightness",
+          "cough",
+          "weakness",
+          "difficulty breathing"
+        ]
+      ]
+    },
+    {
+      "disease": "sepsis",
+      "count": 437,
+      "example_symptom_sets": [
+        [
+          "suprapubic pain",
+          "weakness",
+          "decreased appetite",
+          "difficulty breathing",
+          "chills"
+        ],
+        [
+          "shortness of breath",
+          "cough",
+          "feeling ill",
+          "vomiting",
+          "decreased appetite",
+          "fever",
+          "difficulty breathing",
+          "chills"
+        ],
+        [
+          "shortness of breath",
+          "cough",
+          "suprapubic pain",
+          "sharp abdominal pain",
+          "feeling ill",
+          "vomiting",
+          "decreased appetite",
+          "fever"
+        ]
+      ]
+    },
+    {
+      "disease": "acute kidney injury",
+      "count": 428,
+      "example_symptom_sets": [
+        [
+          "retention of urine",
+          "peripheral edema",
+          "weakness",
+          "kidney mass",
+          "symptoms of the kidneys"
+        ],
+        [
+          "shortness of breath",
+          "retention of urine",
+          "vomiting",
+          "nausea",
+          "peripheral edema",
+          "symptoms of the kidneys"
+        ],
+        [
+          "sharp chest pain",
+          "dizziness",
+          "retention of urine",
+          "vomiting",
+          "weakness",
+          "symptoms of the kidneys"
+        ]
+      ]
+    },
+    {
+      "disease": "heart attack",
+      "count": 424,
+      "example_symptom_sets": [
+        [
+          "fainting",
+          "heartburn",
+          "increased heart rate"
+        ],
+        [
+          "chest tightness",
+          "irregular heartbeat",
+          "nausea",
+          "heartburn",
+          "increased heart rate",
+          "burning chest pain",
+          "sweating"
+        ],
+        [
+          "shortness of breath",
+          "sharp chest pain",
+          "chest tightness",
+          "irregular heartbeat",
+          "fainting",
+          "nausea",
+          "arm pain",
+          "increased heart rate"
+        ]
+      ]
+    },
+    {
+      "disease": "sickle cell crisis",
+      "count": 421,
+      "example_symptom_sets": [
+        [
+          "sharp abdominal pain",
+          "vomiting",
+          "low back pain",
+          "knee pain",
+          "ache all over"
+        ],
+        [
+          "sharp chest pain",
+          "sharp abdominal pain",
+          "vomiting",
+          "arm pain",
+          "low back pain",
+          "burning abdominal pain",
+          "knee pain"
+        ],
+        [
+          "sharp chest pain",
+          "hip pain",
+          "sharp abdominal pain",
+          "low back pain"
+        ]
+      ]
+    },
+    {
+      "disease": "pulmonary embolism",
+      "count": 402,
+      "example_symptom_sets": [
+        [
+          "shortness of breath",
+          "chest tightness",
+          "cough",
+          "leg pain",
+          "difficulty breathing",
+          "hemoptysis"
+        ],
+        [
+          "cough",
+          "leg pain",
+          "leg swelling",
+          "side pain",
+          "hemoptysis",
+          "sweating"
+        ],
+        [
+          "chest tightness",
+          "cough",
+          "leg swelling",
+          "side pain",
+          "hemoptysis",
+          "sweating"
+        ]
+      ]
+    },
+    {
+      "disease": "acute bronchitis",
+      "count": 342,
+      "example_symptom_sets": [
+        [
+            "cough",
+            "nasal congestion",
+            "coughing up sputum",
+            "congestion in chest"
+        ],
+        [
+          "sharp chest pain",
+          "sore throat",
+          "coughing up sputum"
+        ],
+        [
+          "shortness of breath",
+          "sharp chest pain",
+          "cough",
+          "headache",
+          "wheezing",
+          "fever",
+          "congestion in chest"
+        ]
+      ]
+    },
+    {
+      "disease": "vulvodynia",
+      "count": 340,
+      "example_symptom_sets": [
+        [
+          "painful urination",
+          "pelvic pain",
+          "burning abdominal pain"
+        ],
+        [
+          "sharp abdominal pain",
+          "nausea",
+          "pain during pregnancy",
+          "pelvic pain",
+          "burning abdominal pain",
+          "vaginal pain",
+          "side pain"
+        ],
+        [
+          "painful urination",
+          "lower abdominal pain",
+          "vaginal discharge",
+          "burning abdominal pain",
+          "side pain"
+        ]
+      ]
+    },
+    {
+      "disease": "sprain or strain",
+      "count": 339,
+      "example_symptom_sets": [
+        [
+          "wrist pain",
+          "arm pain",
+          "back pain",
+          "low back pain",
+          "shoulder pain"
+        ],
+        [
+          "leg pain",
+          "wrist pain",
+          "arm pain",
+          "back pain",
+          "neck pain",
+          "low back pain",
+          "shoulder pain"
+        ],
+        [
+          "headache",
+          "hand or finger pain",
+          "arm pain",
+          "knee pain",
+          "foot or toe pain",
+          "shoulder pain"
+        ]
+      ]
+    },
+    {
+      "disease": "injury to the arm",
+      "count": 331,
+      "example_symptom_sets": [
+        [
+          "hand or finger pain",
+          "wrist pain",
+          "hand or finger swelling",
+          "arm pain",
+          "arm stiffness or tightness",
+          "arm swelling",
+          "bones are painful",
+          "loss of sensation",
+          "elbow swelling"
+        ],
+        [
+          "wrist pain",
+          "hand or finger swelling",
+          "bones are painful",
+          "elbow pain"
+        ],
+        [
+          "wrist pain",
+          "hand or finger swelling",
+          "arm pain",
+          "arm stiffness or tightness",
+          "arm swelling",
+          "elbow pain",
+          "loss of sensation"
+        ]
+      ]
+    },
+    {
+      "disease": "conjunctivitis due to allergy",
+      "count": 328,
+      "example_symptom_sets": [
+        [
+          "cough",
+          "itchiness of eye",
+          "eye burns or stings",
+          "allergic reaction"
+        ],
+        [
+          "nasal congestion",
+          "diminished vision",
+          "eye burns or stings",
+          "sneezing"
+        ],
+        [
+          "nasal congestion",
+          "symptoms of eye",
+          "pain in eye",
+          "itchiness of eye",
+          "eye burns or stings",
+          "swollen eye"
+        ]
+      ]
+    },
+    {
+      "disease": "infectious gastroenteritis",
+      "count": 326,
+      "example_symptom_sets": [
+        [
+          "blood in stool",
+          "sharp abdominal pain",
+          "vomiting",
+          "headache",
+          "diarrhea",
+          "burning abdominal pain",
+          "decreased appetite",
+          "fluid retention"
+        ],
+        [
+          "sharp abdominal pain",
+          "vomiting",
+          "headache",
+          "nausea",
+          "diarrhea",
+          "burning abdominal pain",
+          "decreased appetite",
+          "fluid retention",
+          "flu-like syndrome"
+        ],
+        [
+          "blood in stool",
+          "sharp abdominal pain",
+          "vomiting",
+          "nausea",
+          "diarrhea",
+          "decreased appetite",
+          "fever"
+        ]
+      ]
+    },
+    {
+      "disease": "eczema",
+      "count": 322,
+      "example_symptom_sets": [
+        [
+          "cough",
+          "skin swelling",
+          "abnormal appearing skin",
+          "skin lesion",
+          "allergic reaction",
+          "itching of skin",
+          "skin dryness, peeling, scaliness, or roughness",
+          "warts"
+        ],
+        [
+          "cough",
+          "itching of skin",
+          "skin dryness, peeling, scaliness, or roughness"
+        ],
+        [
+          "cough",
+          "skin swelling",
+          "acne or pimples",
+          "irregular appearing scalp",
+          "itching of skin",
+          "skin dryness, peeling, scaliness, or roughness",
+          "warts",
+          "skin rash"
+        ]
+      ]
+    },
+    {
+      "disease": "bursitis",
+      "count": 320,
+      "example_symptom_sets": [
+        [
+          "arm pain",
+          "arm stiffness or tightness",
+          "arm swelling",
+          "knee pain",
+          "elbow pain",
+          "knee swelling",
+          "leg swelling"
+        ],
+        [
+          "hip pain",
+          "arm pain",
+          "knee swelling",
+          "leg swelling",
+          "shoulder pain",
+          "shoulder stiffness or tightness"
+        ],
+        [
+          "elbow pain",
+          "leg swelling",
+          "shoulder pain",
+          "shoulder stiffness or tightness",
+          "elbow swelling"
+        ]
+      ]
+    },
+    {
+      "disease": "diverticulitis",
+      "count": 318,
+      "example_symptom_sets": [
+        [
+          "blood in stool",
+          "vomiting",
+          "burning abdominal pain",
+          "upper abdominal pain"
+        ],
+        [
+          "blood in stool",
+          "vomiting",
+          "burning abdominal pain",
+          "side pain",
+          "fever",
+          "chills"
+        ],
+        [
+          "vomiting",
+          "nausea",
+          "diarrhea",
+          "lower abdominal pain",
+          "side pain",
+          "upper abdominal pain"
+        ]
+      ]
+    },
+    {
+      "disease": "obstructive sleep apnea (osa)",
+      "count": 314,
+      "example_symptom_sets": [
+        [
+          "insomnia",
+          "abnormal involuntary movements",
+          "difficulty breathing",
+          "apnea",
+          "abnormal breathing sounds"
+        ],
+        [
+          "insomnia",
+          "abnormal involuntary movements",
+          "mouth dryness",
+          "difficulty breathing",
+          "apnea",
+          "abnormal breathing sounds"
+        ],
+        [
+          "abnormal involuntary movements",
+          "mouth dryness",
+          "weight gain",
+          "fatigue",
+          "sweating"
+        ]
+      ]
+    },
+    {
+      "disease": "complex regional pain syndrome",
+      "count": 313,
+      "example_symptom_sets": [
+        [
+          "leg pain",
+          "arm pain",
+          "back pain",
+          "low back pain",
+          "problems with movement",
+          "ache all over"
+        ],
+        [
+          "leg pain",
+          "hand or finger pain",
+          "back pain",
+          "low back pain",
+          "problems with movement"
+        ],
+        [
+          "abnormal involuntary movements",
+          "leg pain",
+          "hand or finger pain",
+          "back pain",
+          "neck pain",
+          "low back pain",
+          "paresthesia"
+        ]
+      ]
+    },
+    {
+      "disease": "gout",
+      "count": 312,
+      "example_symptom_sets": [
+        [
+          "hand or finger pain",
+          "hand or finger swelling",
+          "wrist swelling",
+          "knee pain",
+          "ankle pain",
+          "knee swelling",
+          "foot or toe swelling"
+        ],
+        [
+          "wrist pain",
+          "hand or finger swelling",
+          "knee pain",
+          "foot or toe pain",
+          "knee swelling",
+          "joint pain",
+          "ankle swelling"
+        ],
+        [
+          "wrist pain",
+          "hand or finger swelling",
+          "wrist swelling",
+          "foot or toe pain",
+          "ankle pain",
+          "leg swelling",
+          "foot or toe swelling",
+          "joint pain",
+          "ankle swelling"
+        ]
+      ]
+    },
+    {
+      "disease": "arthritis of the hip",
+      "count": 312,
+      "example_symptom_sets": [
+        [
+          "back pain",
+          "low back pain",
+          "pelvic pain",
+          "knee pain",
+          "ache all over"
+        ],
+        [
+          "leg pain",
+          "hip pain",
+          "back pain",
+          "low back pain",
+          "joint pain"
+        ],
+        [
+          "leg pain",
+          "back pain",
+          "low back pain",
+          "knee pain",
+          "ache all over",
+          "joint pain",
+          "groin pain",
+          "hip stiffness or tightness"
+        ]
+      ]
+    }
+  ]
+}

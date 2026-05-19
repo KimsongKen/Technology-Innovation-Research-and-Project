@@ -1,0 +1,113 @@
+[
+  {
+    "id": "TC-01",
+    "scenario": "Heart Attack",
+    "warlpiri_phrase": "rduku-rduku pacha ngurluju",
+    "warlpiri_english_description": "Chest area pain severe — classic heart attack presentation",
+    "expected_english_contains": ["chest", "pain", "severe"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Heart Attack",
+    "speak_as": "rduku-rduku pacha ngurluju",
+    "notes": "rduku-rduku = chest (reduplicated = painful), pacha = pain, ngurluju = severe/serious"
+  },
+  {
+    "id": "TC-02",
+    "scenario": "Cannot Breathe — Respiratory Emergency",
+    "warlpiri_phrase": "parnka-parnka kurrunpa wantimi",
+    "warlpiri_english_description": "Gasping, breath gone, stopped breathing",
+    "expected_english_contains": ["breath", "cannot breathe", "gasping"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Respiratory Emergency",
+    "speak_as": "parnka-parnka kurrunpa wantimi",
+    "notes": "parnka-parnka = gasping/struggling for air, kurrunpa = breath, wantimi = stopped/fallen"
+  },
+  {
+    "id": "TC-03",
+    "scenario": "Seizure and Collapse",
+    "warlpiri_phrase": "rdilyka jarndu yapa",
+    "warlpiri_english_description": "Shaking seizure, person collapsed",
+    "expected_english_contains": ["seizure", "collapse", "shaking"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Seizure / Neurological",
+    "speak_as": "rdilyka jarndu yapa",
+    "notes": "rdilyka = convulsing/shaking, jarndu = faint/collapse, yapa = person"
+  },
+  {
+    "id": "TC-04",
+    "scenario": "Stroke Signs",
+    "warlpiri_phrase": "yapa jarndu yimirri pama jurru-jurru",
+    "warlpiri_english_description": "Person collapsed, cannot use hand, severe head pain",
+    "expected_english_contains": ["collapse", "cannot", "head"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Stroke",
+    "speak_as": "yapa jarndu yimirri pama jurru-jurru",
+    "notes": "yimirri = cannot/unable, pama = hand — one-sided weakness stroke indicator, jurru-jurru = severe headache"
+  },
+  {
+    "id": "TC-05",
+    "scenario": "Severe Bleeding",
+    "warlpiri_phrase": "karli-karli ngurluju wantimi",
+    "warlpiri_english_description": "Severe bleeding, person falling",
+    "expected_english_contains": ["bleeding", "blood", "severe"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Hemorrhage",
+    "speak_as": "karli-karli ngurluju wantimi",
+    "notes": "karli = blood, karli-karli = bleeding (reduplicated), ngurluju = severe"
+  },
+  {
+    "id": "TC-06",
+    "scenario": "High Fever with Cough — Pneumonia",
+    "warlpiri_phrase": "karrija-karrija wirlinyi yuwarli",
+    "warlpiri_english_description": "Very high fever, coughing, feeling unwell",
+    "expected_english_contains": ["fever", "cough", "sick"],
+    "expected_triage": "Moderate",
+    "expected_triage_minimum": "Moderate",
+    "expected_disease_hint": "Pneumonia / Respiratory Infection",
+    "speak_as": "karrija karrija wirlinyi yuwarli",
+    "notes": "karrija-karrija = very hot/high fever, wirlinyi = cough, yuwarli = sick/unwell"
+  },
+  {
+    "id": "TC-07",
+    "scenario": "Stomach Pain and Vomiting — Gastroenteritis",
+    "warlpiri_phrase": "yurrnga puku-puku pacha",
+    "warlpiri_english_description": "Vomiting, severe stomach pain",
+    "expected_english_contains": ["vomit", "stomach", "pain"],
+    "expected_triage": "Moderate",
+    "expected_disease_hint": "Gastroenteritis / Appendicitis",
+    "speak_as": "yurrnga puku-puku pacha",
+    "notes": "yurrnga = vomiting/nausea, puku-puku = belly/abdominal pain, pacha = pain"
+  },
+  {
+    "id": "TC-08",
+    "scenario": "Headache and Dizziness — Hypertension / Migraine",
+    "warlpiri_phrase": "jurru pacha kuyu-kuyu",
+    "warlpiri_english_description": "Head pain, dizziness, spinning",
+    "expected_english_contains": ["head", "dizzy", "pain"],
+    "expected_triage": "Moderate",
+    "expected_disease_hint": "Hypertension / Migraine",
+    "speak_as": "jurru pacha kuyu-kuyu",
+    "notes": "jurru = head, pacha = pain, kuyu-kuyu = dizzy/spinning"
+  },
+  {
+    "id": "TC-09",
+    "scenario": "Sick Child with Fever — Paediatric Emergency",
+    "warlpiri_phrase": "kurdu yuwarli ngurluju karrija",
+    "warlpiri_english_description": "Child very sick, seriously unwell, high fever",
+    "expected_english_contains": ["child", "sick", "fever"],
+    "expected_triage": "Severe",
+    "expected_disease_hint": "Paediatric Emergency",
+    "speak_as": "kurdu yuwarli ngurluju karrija",
+    "notes": "kurdu = child/baby, yuwarli ngurluju = very sick/seriously ill, karrija = hot/fever — child + serious = always escalate"
+  },
+  {
+    "id": "TC-10",
+    "scenario": "Weakness and Fatigue — Anaemia",
+    "warlpiri_phrase": "pirlirrpa yuwarli karlarra",
+    "warlpiri_english_description": "Weakness, sick, very tired and exhausted",
+    "expected_english_contains": ["weak", "tired", "sick"],
+    "expected_triage": "Mild",
+    "expected_disease_hint": "Anaemia / Fatigue",
+    "speak_as": "pirlirrpa yuwarli karlarra",
+    "notes": "pirlirrpa = weak/weakness, yuwarli = sick, karlarra = tired/exhausted"
+  }
+]

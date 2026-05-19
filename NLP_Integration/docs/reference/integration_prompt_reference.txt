@@ -1,0 +1,52 @@
+Since you are the Integration Lead and Design Architect, your work in Cursor AI needs to bridge the gap between your teammates' ML models and the Flutter applications. This prompt is designed to set up your FastAPI environment and the specific NLP fusion logic you are responsible for.
++3
+
+Copy and paste the following into the Cursor AI composer (Cmd+K or Ctrl+K).
+
+Cursor AI Prompt: Integration Lead & NLP Architect Setup
+Role: Senior Systems Architect & Integration Lead.
+Project: Swin SACA (Smart Adaptive Clinical Assistant) for the Yuendumu community.
+Task: Build the FastAPI Intelligence Hub and the Late Fusion NLP Pipeline.
+
+1. Project Scaffolding & Environment
+
+Create a Python 3.10 virtual environment.
+
+Generate a professional folder structure: /api (routes), /models (ML/NLP binaries), /services (Fusion logic), and /core (security/sync).
++3
+
+Generate a requirements.txt including: fastapi, uvicorn, torch, transformers, sentence-transformers, pandas, and pydantic.
+
+2. The NLP Integration Branch
+
+Implement a service using Sentence Transformers (specifically all-MiniLM-L6-v2 or XLM-RoBERTa) to encode Warlpiri/English symptom transcripts into high-dimensional semantic vectors.
++1
+
+Create a placeholder for the 1D-CNN acoustic feature extraction to capture "how" the user speaks (urgency/distress) alongside the semantic text.
++1
+
+3. Multimodal Late Fusion Logic
+
+Build the core Late Fusion service. This must take the feature vectors from the NLP Branch (Text + Audio) and the LSTM Branch (Sensors) and concatenate them into a unified tensor.
++3
+
+Define the final MLP (Multi-Layer Perceptron) classifier that takes this fused vector and outputs a triage severity: Mild, Moderate, or Severe.
++1
+
+4. The "Secure Bridge" API (FastAPI)
+
+Create a POST endpoint /triage/predict that accepts a JSON packet from the Flutter frontend.
++1
+
+The schema should include: symptom_text (string), audio_blob (placeholder), and sensor_data (object containing Heart Rate and SpO2).
++2
+
+Ensure the API generates automatic Swagger/OpenAPI documentation for the frontend team to reference.
+
+5. System Resilience
+
+Add a mock service for Offline-First Synchronization. This should simulate how field data is cached and reconciled with the clinic's Spring Boot server when a connection is restored.
+
+Adhere to CARE Principles for Indigenous Data Governance by ensuring the API handles data with end-to-end encryption.
+
+Constraint: Write clean, modular code. Do not run training yet; focus on the architectural "Bridge" and the NLP semantic integration.

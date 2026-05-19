@@ -1,0 +1,188 @@
+{
+  "generated_for": "SACA App — symptom icon / image generation",
+  "total_symptoms": 83,
+  "note": "Each 'label' is the exact string displayed in the app. 'image_hint' describes what the icon or illustration should depict for clarity and quick recognition by non-medical users.",
+  "removed_as_redundant": [
+    "Concussion (hit to head)        → covered by 'Head injury or bump'",
+    "Chest tightness or pressure     → moved to Heart & Circulation systemic category",
+    "Burning abdominal pain          → covered by 'Upper/Lower abdominal pain'",
+    "Rectal bleeding                 → covered by 'Blood in stool or black stool'",
+    "Arm stiffness                   → covered by 'Arm pain' and 'Suspected fracture (arm)'",
+    "Limited arm movement            → covered by 'Suspected fracture (arm)' and injury entries",
+    "Low back pain (into leg)        → covered by 'Lower back pain' in body section",
+    "Limited leg or knee movement    → covered by 'Knee pain or injury'",
+    "Joint stiffness (knee or ankle) → covered by 'Ankle pain or sprain' / 'Knee pain or injury'",
+    "Nasal congestion or stuffy nose → merged into 'Runny or blocked nose'",
+    "Coughing up phlegm or mucus     → merged into 'Cough'",
+    "Difficulty breathing            → covered by 'Shortness of breath'",
+    "Feeling generally unwell        → too abstract to image, covered by other systemic symptoms",
+    "Eye redness or burning          → covered by 'Itchy or watery eyes'",
+    "Sneezing fits (hay fever)       → duplicate of 'Sneezing'",
+    "Allergic reaction               → too abstract, covered by hives/rash entries",
+    "Skin swelling or lesion         → covered by 'Hives or skin welts' and 'Skin rash'",
+    "Stomach bloating (systemic)     → already in physical as 'Stomach bloating or cramping'",
+    "Flu-like stomach illness        → too abstract to image",
+    "Irregular heartbeat             → same image as 'Racing heart or palpitations'",
+    "Increased heart rate            → same image as 'Racing heart or palpitations'",
+    "Leg swelling (systemic)         → already in physical as 'Leg or ankle swelling'",
+    "Feeling of panic or dread       → merged into 'Sudden intense fear (panic attack)'",
+    "Excessive worry or restlessness → too abstract to image meaningfully",
+    "Difficulty concentrating        → too abstract to image",
+    "Low mood or depression          → too abstract to image in clinical context",
+    "Unexplained weight gain         → too abstract for acute triage context",
+    "Memory or concentration problems→ too abstract to image",
+    "Loss of sensation               → covered by 'Numbness or tingling (body-wide)'",
+    "Sudden dizziness or shakiness   → covered by 'Dizziness or lightheadedness' (neurological)",
+    "Cold sweats                     → covered by 'Unexpected sweating' (heart section)",
+    "Sleepiness after eating         → too situational, covered by 'Excessive daytime sleepiness'",
+    "Sudden confusion after not eating → covered by 'Feeling faint after skipping meals'",
+    "Frequent need to urinate (systemic) → already in physical as 'Frequent urination'"
+  ],
+
+  "physical_symptoms": {
+    "description": "Step 0 — shown filtered by whichever body part(s) the user tapped on the 3D model.",
+    "head": [
+      { "label": "Headache",                        "image_hint": "Person pressing both temples with a pained grimace, pain lines radiating from head" },
+      { "label": "Head injury or bump",             "image_hint": "Head profile with a raised bump or bruise, stars or impact lines around it" },
+      { "label": "Neck pain or stiffness",          "image_hint": "Person tilting head sideways with hand on neck, neck area highlighted in red" },
+      { "label": "Jaw pain",                        "image_hint": "Face with jaw area highlighted, hand pressing cheek or jaw" },
+      { "label": "Facial swelling or bruising",     "image_hint": "Face with one side swollen and bruised, darker colour on the cheek/eye area" },
+      { "label": "Eye injury or pain",              "image_hint": "Close-up of eye with redness or teardrop, hand covering eye protectively" },
+      { "label": "Ear pain",                        "image_hint": "Side of head with ear highlighted in red, hand cupping the ear" },
+      { "label": "Toothache or mouth pain",         "image_hint": "Open mouth with one tooth highlighted in red, pain lines radiating" },
+      { "label": "Sore throat",                     "image_hint": "Throat/neck cross-section showing inflamed red throat, or person touching throat" },
+      { "label": "Difficulty swallowing",           "image_hint": "Person wincing while swallowing, throat highlighted, downward arrow blocked" },
+      { "label": "Facial numbness or tingling",     "image_hint": "Face with dotted/sparkle pattern over one side suggesting pins and needles" }
+    ],
+    "body": [
+      { "label": "Sharp chest pain",               "image_hint": "Chest with a lightning bolt or knife icon over the heart area, person clutching chest" },
+      { "label": "Burning chest pain",             "image_hint": "Chest with a flame icon in the centre, person pressing open palm on sternum" },
+      { "label": "Rib pain or tenderness",         "image_hint": "Torso with rib cage visible, one or two ribs highlighted in red" },
+      { "label": "Heartburn",                      "image_hint": "Oesophagus and stomach outline with a flame rising up from stomach into throat" },
+      { "label": "Upper abdominal pain",           "image_hint": "Torso with upper belly (below ribcage) highlighted in red" },
+      { "label": "Lower abdominal pain",           "image_hint": "Torso with lower belly (below navel) highlighted in red" },
+      { "label": "Side or flank pain",             "image_hint": "Torso viewed from behind with one side (kidney area) highlighted in red" },
+      { "label": "Stomach bloating or cramping",   "image_hint": "Rounded, distended belly outline with wavy discomfort lines" },
+      { "label": "Groin or pelvic pain",           "image_hint": "Lower torso with pelvic region highlighted in red" },
+      { "label": "Upper back pain",                "image_hint": "Back view of torso with upper back (shoulder-blade area) highlighted in red" },
+      { "label": "Lower back pain",                "image_hint": "Back view of torso with lumbar region highlighted in red, person with hands on lower back" },
+      { "label": "Blood in stool or black stool",  "image_hint": "Simplified icon of stool sample with red droplet, or toilet bowl with red tinge" },
+      { "label": "Vomiting blood",                 "image_hint": "Person bent forward vomiting with red colour indicating blood" },
+      { "label": "Blood in urine",                 "image_hint": "Urine sample icon with red tinge / pink colouring inside" },
+      { "label": "Painful urination",              "image_hint": "Person in discomfort with urine stream icon and red pain indicator" },
+      { "label": "Frequent urination",             "image_hint": "Bathroom door icon with multiple arrows indicating repeated trips, or clock with urine drop" }
+    ],
+    "arm": [
+      { "label": "Arm pain",                       "image_hint": "Arm with a red pain zone along the upper or full arm, person gripping arm" },
+      { "label": "Shoulder pain or injury",        "image_hint": "Shoulder joint highlighted in red with pain lines, arm hanging or raised awkwardly" },
+      { "label": "Elbow pain or injury",           "image_hint": "Elbow joint highlighted in red, arm slightly bent showing point of pain" },
+      { "label": "Wrist pain or sprain",           "image_hint": "Wrist wrapped or highlighted in red, slight bend showing injury area" },
+      { "label": "Hand or finger pain",            "image_hint": "Hand with one or more fingers highlighted in red, pain lines around knuckle" },
+      { "label": "Arm or hand swelling",           "image_hint": "Arm or hand that appears puffy/swollen compared to normal outline" },
+      { "label": "Suspected fracture (arm)",       "image_hint": "Arm with a visible crack or break line on the bone, X-ray style illustration" },
+      { "label": "Arm numbness or tingling",       "image_hint": "Arm with dotted/sparkle pattern overlay suggesting pins and needles sensation" }
+    ],
+    "leg": [
+      { "label": "Leg pain",                       "image_hint": "Leg with red pain zone along the thigh or full leg, person gripping thigh" },
+      { "label": "Knee pain or injury",            "image_hint": "Knee joint highlighted in red, slight bend showing the point of pain" },
+      { "label": "Ankle pain or sprain",           "image_hint": "Ankle highlighted in red with swelling indicator, foot at awkward angle" },
+      { "label": "Hip pain",                       "image_hint": "Hip joint area highlighted in red, person holding side of hip" },
+      { "label": "Foot or toe pain",               "image_hint": "Foot with one or more toes highlighted in red, pain lines over the toe" },
+      { "label": "Leg or ankle swelling",          "image_hint": "Lower leg and ankle area appearing puffy/swollen compared to normal" },
+      { "label": "Calf tightness or pain",         "image_hint": "Back of lower leg with calf muscle highlighted in red, person gripping calf" },
+      { "label": "Suspected fracture (leg)",       "image_hint": "Leg bone with a visible crack or break line, X-ray style illustration" },
+      { "label": "Leg numbness or tingling",       "image_hint": "Leg with dotted/sparkle pattern overlay suggesting pins and needles sensation" }
+    ]
+  },
+
+  "systemic_symptoms": {
+    "description": "Step 1 — shown after physical symptoms. These are body-wide symptoms not tied to one body location. Grouped into 8 named disease-family categories.",
+    "flu_cold_chest": {
+      "category_label": "Flu, Cold & Chest",
+      "diseases_covered": ["acute bronchitis", "strep throat", "pneumonia", "influenza", "COVID-like illness", "sepsis"],
+      "symptoms": [
+        { "label": "Fever or high temperature",    "image_hint": "Thermometer showing high reading with red mercury, or face flushed red" },
+        { "label": "Chills or shivering",          "image_hint": "Person wrapped in blanket visibly shivering, cold wavy lines around them" },
+        { "label": "Body aches all over",          "image_hint": "Full body silhouette with multiple red pain dots spread across it" },
+        { "label": "Runny or blocked nose",        "image_hint": "Nose with a droplet coming out, or nose with a blocked X symbol" },
+        { "label": "Sneezing",                     "image_hint": "Person mid-sneeze with spray particles, tissue in hand" },
+        { "label": "Cough",                        "image_hint": "Person with hand covering mouth, cough wave lines emanating from mouth" },
+        { "label": "Coughing up blood",            "image_hint": "Person coughing into tissue/hand with red droplet indicating blood" },
+        { "label": "Wheezing",                     "image_hint": "Lungs with constricted airways shown as narrow tubes, sound wave lines" },
+        { "label": "Shortness of breath",          "image_hint": "Person leaning forward with hands on knees, laboured breathing shown with short wavy lines" }
+      ]
+    },
+    "allergies_skin": {
+      "category_label": "Allergies & Skin",
+      "diseases_covered": ["conjunctivitis due to allergy", "eczema", "hay fever", "allergic rhinitis", "urticaria"],
+      "symptoms": [
+        { "label": "Itchy or watery eyes",         "image_hint": "Eye with wavy itch lines and a tear droplet, slight redness around the eye" },
+        { "label": "Hives or skin welts",          "image_hint": "Skin patch showing raised red welts/bumps in a cluster" },
+        { "label": "Itchy skin",                   "image_hint": "Arm or body with scratching hand and red itch lines" },
+        { "label": "Skin rash",                    "image_hint": "Patch of skin showing red spotted or blotchy rash pattern" },
+        { "label": "Dry or peeling skin",          "image_hint": "Skin surface showing cracked, dry, or flaking texture" }
+      ]
+    },
+    "stomach_digestion": {
+      "category_label": "Stomach & Digestion",
+      "diseases_covered": ["infectious gastroenteritis", "appendicitis", "diverticulitis", "food poisoning"],
+      "symptoms": [
+        { "label": "Nausea",                       "image_hint": "Person with green-tinged face, hand over mouth looking queasy" },
+        { "label": "Vomiting",                     "image_hint": "Person bent forward with wavy lines indicating vomiting, basin nearby" },
+        { "label": "Diarrhoea",                    "image_hint": "Simplified toilet icon with urgency arrow, or person rushing to bathroom" },
+        { "label": "Loss of appetite",             "image_hint": "Food bowl or plate with an X or turned-away face showing no desire to eat" }
+      ]
+    },
+    "heart_circulation": {
+      "category_label": "Heart & Circulation",
+      "diseases_covered": ["heart attack", "heart failure", "arrhythmia", "pulmonary embolism", "esophagitis"],
+      "symptoms": [
+        { "label": "Chest tightness or pressure",  "image_hint": "Chest with a heavy weight or compression band squeezing around it" },
+        { "label": "Racing heart or palpitations", "image_hint": "Heart icon beating rapidly with multiple pulse lines, fast ECG line below" },
+        { "label": "Fainting or near-fainting",    "image_hint": "Person slumping or collapsing, stars or dark edges around vision" },
+        { "label": "Unexpected sweating",          "image_hint": "Person with sweat drops on forehead in a cool environment, surprised expression" }
+      ]
+    },
+    "anxiety_panic": {
+      "category_label": "Anxiety & Panic",
+      "diseases_covered": ["panic attack", "generalised anxiety disorder", "hypoglycemia (overlapping symptoms)"],
+      "symptoms": [
+        { "label": "Trembling or shaking",         "image_hint": "Hands visibly shaking, motion blur lines around them" },
+        { "label": "Sudden intense fear (panic attack)", "image_hint": "Person wide-eyed with hands raised in sudden alarm, heart and sweat lines" },
+        { "label": "Rapid shallow breathing",      "image_hint": "Person breathing quickly, chest heaving, short rapid breath waves" }
+      ]
+    },
+    "sleep_energy": {
+      "category_label": "Sleep & Energy",
+      "diseases_covered": ["obstructive sleep apnea", "insomnia", "chronic fatigue", "sleep deprivation"],
+      "symptoms": [
+        { "label": "Insomnia or trouble sleeping", "image_hint": "Person lying awake in dark room, eyes open, clock showing late hour" },
+        { "label": "Excessive daytime sleepiness", "image_hint": "Person falling asleep at desk or mid-activity, ZZZ letters, coffee cup nearby" },
+        { "label": "Loud snoring or stopping breathing in sleep", "image_hint": "Person asleep with large snoring sound waves, partner covering ears" },
+        { "label": "Fatigue or extreme tiredness", "image_hint": "Person slumped, drained expression, low battery icon overlay" },
+        { "label": "General weakness",             "image_hint": "Person unable to lift arm or carry light object, limp posture" }
+      ]
+    },
+    "neurological": {
+      "category_label": "Neurological",
+      "diseases_covered": ["multiple sclerosis", "CRPS", "hypoglycemia", "concussion aftermath", "epilepsy"],
+      "symptoms": [
+        { "label": "Dizziness or lightheadedness", "image_hint": "Person holding head with spinning spiral around them, unsteady posture" },
+        { "label": "Confusion or disorientation",  "image_hint": "Person with question marks around head, lost or blank expression" },
+        { "label": "Numbness or tingling (body-wide)", "image_hint": "Body silhouette with dotted/sparkle pattern spread across multiple areas" },
+        { "label": "Involuntary or abnormal movements", "image_hint": "Arm or hand with erratic movement lines, twitching motion blur" },
+        { "label": "Difficulty with coordination or walking", "image_hint": "Person walking unsteadily, stumbling, feet not placing correctly" },
+        { "label": "Seizures",                     "image_hint": "Person convulsing with lightning-bolt lines around body, safety position" }
+      ]
+    },
+    "blood_sugar": {
+      "category_label": "Blood Sugar",
+      "diseases_covered": ["hypoglycemia", "diabetes-related episodes"],
+      "symptoms": [
+        { "label": "Excessive thirst",             "image_hint": "Person drinking large glass of water desperately, dry cracked lips" },
+        { "label": "Shakiness or trembling when hungry", "image_hint": "Hands shaking near an empty plate or empty stomach icon" },
+        { "label": "Feeling faint after skipping meals", "image_hint": "Person lightheaded near clock showing long time since eating, empty bowl" }
+      ]
+    }
+  }
+}

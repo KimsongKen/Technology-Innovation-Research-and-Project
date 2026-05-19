@@ -1,0 +1,52 @@
+{
+  "disease_metrics": {
+    "ExtraNGvboost": {
+      "accuracy": 0.9678082191780822,
+      "precision_macro": 0.966795075085996,
+      "recall_macro": 0.9674792939028777,
+      "f1_macro": 0.9668944683597852,
+      "precision_weighted": 0.9682808372380747,
+      "recall_weighted": 0.9678082191780822,
+      "f1_weighted": 0.9678196654160949
+    },
+    "CatBoost": {
+      "accuracy": 0.9647260273972603,
+      "precision_macro": 0.9669258150015179,
+      "recall_macro": 0.9620942397289418,
+      "f1_macro": 0.9635068589643048,
+      "precision_weighted": 0.9652208708840375,
+      "recall_weighted": 0.9647260273972603,
+      "f1_weighted": 0.9640963206171822
+    }
+  },
+  "severity_metrics": {
+    "ExtraNGvboost": {
+      "accuracy": 0.9780821917808219,
+      "precision_macro": 0.9772199332801225,
+      "recall_macro": 0.9776564851830956,
+      "f1_macro": 0.9774231460047097,
+      "precision_weighted": 0.978119698000273,
+      "recall_weighted": 0.9780821917808219,
+      "f1_weighted": 0.9780872182051151,
+      "severe_recall": 0.9786135693215339
+    },
+    "CatBoost": {
+      "accuracy": 0.9767123287671233,
+      "precision_macro": 0.9772240984357773,
+      "recall_macro": 0.9730743485777529,
+      "f1_macro": 0.9750678310564688,
+      "precision_weighted": 0.9767670422677894,
+      "recall_weighted": 0.9767123287671233,
+      "f1_weighted": 0.976672348716824,
+      "severe_recall": 0.9889380530973452
+    }
+  },
+  "winners": {
+    "disease": "ExtraNGvboost",
+    "severity": "CatBoost"
+  },
+  "artifacts": {
+    "standardized_test_set": "C:\\Users\\kimso\\Desktop\\Technology Project\\saca_model_evaluation\\standardized_test_set.csv",
+    "predictions_csv": "C:\\Users\\kimso\\Desktop\\Technology Project\\saca_model_evaluation\\model_predictions.csv"
+  }
+}

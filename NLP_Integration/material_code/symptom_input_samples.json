@@ -1,0 +1,412 @@
+{
+  "source_dataset": "c:\\Users\\kimso\\Desktop\\Technology Project\\archive\\Model_catboost\\saca_top40_dataset 1.csv",
+  "total_available_symptoms": 162,
+  "all_symptoms": [
+    "anxiety and nervousness",
+    "depression",
+    "shortness of breath",
+    "depressive or psychotic symptoms",
+    "sharp chest pain",
+    "dizziness",
+    "insomnia",
+    "abnormal involuntary movements",
+    "chest tightness",
+    "palpitations",
+    "irregular heartbeat",
+    "sore throat",
+    "difficulty speaking",
+    "cough",
+    "nasal congestion",
+    "difficulty in swallowing",
+    "skin swelling",
+    "retention of urine",
+    "leg pain",
+    "hip pain",
+    "suprapubic pain",
+    "blood in stool",
+    "abusing alcohol",
+    "fainting",
+    "hostile behavior",
+    "drug abuse",
+    "sharp abdominal pain",
+    "feeling ill",
+    "vomiting",
+    "headache",
+    "nausea",
+    "diarrhea",
+    "painful urination",
+    "involuntary urination",
+    "frequent urination",
+    "lower abdominal pain",
+    "vaginal discharge",
+    "blood in urine",
+    "intermenstrual bleeding",
+    "hand or finger pain",
+    "wrist pain",
+    "hand or finger swelling",
+    "arm pain",
+    "wrist swelling",
+    "arm stiffness or tightness",
+    "arm swelling",
+    "toothache",
+    "abnormal appearing skin",
+    "skin lesion",
+    "acne or pimples",
+    "facial pain",
+    "skin growth",
+    "diminished vision",
+    "symptoms of eye",
+    "pain in eye",
+    "irregular appearing scalp",
+    "back pain",
+    "neck pain",
+    "low back pain",
+    "pain during pregnancy",
+    "pelvic pain",
+    "vomiting blood",
+    "burning abdominal pain",
+    "restlessness",
+    "wheezing",
+    "peripheral edema",
+    "ear pain",
+    "jaw swelling",
+    "mouth dryness",
+    "neck swelling",
+    "knee pain",
+    "foot or toe pain",
+    "ankle pain",
+    "bones are painful",
+    "elbow pain",
+    "knee swelling",
+    "weight gain",
+    "problems with movement",
+    "knee stiffness or tightness",
+    "leg swelling",
+    "foot or toe swelling",
+    "heartburn",
+    "infant feeding problem",
+    "vaginal pain",
+    "weakness",
+    "increased heart rate",
+    "eye redness",
+    "lacrimation",
+    "itchiness of eye",
+    "eye burns or stings",
+    "decreased appetite",
+    "excessive anger",
+    "loss of sensation",
+    "focal weakness",
+    "slurring words",
+    "symptoms of the face",
+    "disturbance of memory",
+    "paresthesia",
+    "side pain",
+    "fever",
+    "shoulder pain",
+    "shoulder stiffness or tightness",
+    "ache all over",
+    "lower body pain",
+    "problems during pregnancy",
+    "spotting or bleeding during pregnancy",
+    "cramps and spasms",
+    "upper abdominal pain",
+    "stomach bloating",
+    "changes in stool appearance",
+    "kidney mass",
+    "difficulty breathing",
+    "joint pain",
+    "chills",
+    "groin pain",
+    "fatigue",
+    "symptoms of the kidneys",
+    "melena",
+    "coughing up sputum",
+    "seizures",
+    "delusions or hallucinations",
+    "rectal bleeding",
+    "constipation",
+    "temper problems",
+    "coryza",
+    "hemoptysis",
+    "allergic reaction",
+    "congestion in chest",
+    "sleepiness",
+    "apnea",
+    "abnormal breathing sounds",
+    "blood clots during menstrual periods",
+    "gum pain",
+    "fluid retention",
+    "flu-like syndrome",
+    "sinus congestion",
+    "painful sinuses",
+    "fears and phobias",
+    "uterine contractions",
+    "burning chest pain",
+    "nosebleed",
+    "heavy menstrual flow",
+    "sweating",
+    "swollen eye",
+    "symptoms of bladder",
+    "irregular appearing nails",
+    "itching of skin",
+    "hurts to breath",
+    "skin dryness, peeling, scaliness, or roughness",
+    "skin irritation",
+    "itchy scalp",
+    "warts",
+    "skin rash",
+    "ankle swelling",
+    "elbow swelling",
+    "low self-esteem",
+    "hip stiffness or tightness",
+    "mouth pain",
+    "arm weakness",
+    "sneezing",
+    "leg weakness",
+    "pain in gums"
+  ],
+  "top_20_common_symptoms": [
+    "vomiting",
+    "sharp abdominal pain",
+    "nausea",
+    "weakness",
+    "sharp chest pain",
+    "shortness of breath",
+    "cough",
+    "burning abdominal pain",
+    "headache",
+    "fever",
+    "diarrhea",
+    "difficulty breathing",
+    "back pain",
+    "dizziness",
+    "decreased appetite",
+    "leg pain",
+    "problems with movement",
+    "abnormal involuntary movements",
+    "arm pain",
+    "side pain"
+  ],
+  "bottom_20_rare_symptoms": [
+    "vaginal pain",
+    "spotting or bleeding during pregnancy",
+    "swollen eye",
+    "blood in urine",
+    "groin pain",
+    "shoulder stiffness or tightness",
+    "intermenstrual bleeding",
+    "excessive anger",
+    "neck swelling",
+    "drug abuse",
+    "irregular appearing nails",
+    "hostile behavior",
+    "infant feeding problem",
+    "symptoms of the face",
+    "heavy menstrual flow",
+    "delusions or hallucinations",
+    "temper problems",
+    "arm weakness",
+    "low self-esteem",
+    "itchy scalp"
+  ],
+  "sample_test_inputs": [
+    {
+      "case_id": 10476,
+      "symptoms": [
+        "sharp abdominal pain",
+        "nausea",
+        "decreased appetite",
+        "side pain",
+        "upper abdominal pain"
+      ],
+      "symptom_count_in_row": 5,
+      "true_label_hint": {
+        "disease": "appendicitis",
+        "severity": "Severe"
+      }
+    },
+    {
+      "case_id": 1824,
+      "symptoms": [
+        "nasal congestion",
+        "vomiting",
+        "headache",
+        "fever",
+        "ache all over",
+        "skin rash"
+      ],
+      "symptom_count_in_row": 6,
+      "true_label_hint": {
+        "disease": "strep throat",
+        "severity": "Mild"
+      }
+    },
+    {
+      "case_id": 409,
+      "symptoms": [
+        "abnormal appearing skin",
+        "skin lesion",
+        "skin growth",
+        "irregular appearing scalp",
+        "pelvic pain",
+        "itching of skin",
+        "itchy scalp",
+        "skin rash"
+      ],
+      "symptom_count_in_row": 8,
+      "true_label_hint": {
+        "disease": "fungal infection of the hair",
+        "severity": "Mild"
+      }
+    },
+    {
+      "case_id": 12149,
+      "symptoms": [
+        "suprapubic pain",
+        "sharp abdominal pain",
+        "feeling ill",
+        "vomiting",
+        "decreased appetite",
+        "fever",
+        "difficulty breathing"
+      ],
+      "symptom_count_in_row": 7,
+      "true_label_hint": {
+        "disease": "sepsis",
+        "severity": "Severe"
+      }
+    },
+    {
+      "case_id": 4506,
+      "symptoms": [
+        "vomiting",
+        "diarrhea",
+        "burning abdominal pain",
+        "side pain",
+        "upper abdominal pain",
+        "constipation"
+      ],
+      "symptom_count_in_row": 6,
+      "true_label_hint": {
+        "disease": "diverticulitis",
+        "severity": "Moderate"
+      }
+    },
+    {
+      "case_id": 4012,
+      "symptoms": [
+        "wrist pain",
+        "hand or finger swelling",
+        "arm swelling",
+        "bones are painful",
+        "elbow pain",
+        "elbow swelling"
+      ],
+      "symptom_count_in_row": 6,
+      "true_label_hint": {
+        "disease": "injury to the arm",
+        "severity": "Moderate"
+      }
+    },
+    {
+      "case_id": 3657,
+      "symptoms": [
+        "leg pain",
+        "hand or finger pain",
+        "loss of sensation",
+        "ache all over"
+      ],
+      "symptom_count_in_row": 4,
+      "true_label_hint": {
+        "disease": "complex regional pain syndrome",
+        "severity": "Moderate"
+      }
+    },
+    {
+      "case_id": 2286,
+      "symptoms": [
+        "sore throat",
+        "cough",
+        "headache",
+        "wheezing",
+        "difficulty breathing",
+        "coughing up sputum",
+        "coryza"
+      ],
+      "symptom_count_in_row": 7,
+      "true_label_hint": {
+        "disease": "acute bronchitis",
+        "severity": "Mild"
+      }
+    },
+    {
+      "case_id": 12066,
+      "symptoms": [
+        "shortness of breath",
+        "sharp chest pain",
+        "cough",
+        "wheezing",
+        "fever",
+        "chills"
+      ],
+      "symptom_count_in_row": 6,
+      "true_label_hint": {
+        "disease": "pneumonia",
+        "severity": "Severe"
+      }
+    },
+    {
+      "case_id": 1679,
+      "symptoms": [
+        "arm stiffness or tightness",
+        "arm swelling",
+        "knee pain",
+        "elbow pain",
+        "leg swelling",
+        "shoulder pain",
+        "elbow swelling"
+      ],
+      "symptom_count_in_row": 7,
+      "true_label_hint": {
+        "disease": "bursitis",
+        "severity": "Mild"
+      }
+    },
+    {
+      "case_id": 11087,
+      "symptoms": [
+        "vomiting",
+        "nausea",
+        "diarrhea",
+        "lower abdominal pain"
+      ],
+      "symptom_count_in_row": 4,
+      "true_label_hint": {
+        "disease": "appendicitis",
+        "severity": "Severe"
+      }
+    },
+    {
+      "case_id": 12135,
+      "symptoms": [
+        "shortness of breath",
+        "sharp chest pain",
+        "retention of urine",
+        "sharp abdominal pain",
+        "vomiting",
+        "nausea",
+        "peripheral edema",
+        "kidney mass"
+      ],
+      "symptom_count_in_row": 8,
+      "true_label_hint": {
+        "disease": "acute kidney injury",
+        "severity": "Severe"
+      }
+
+      
+    }
+  ]
+  
+}
+

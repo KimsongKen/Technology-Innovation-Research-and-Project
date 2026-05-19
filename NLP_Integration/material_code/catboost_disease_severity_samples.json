@@ -1,0 +1,170 @@
+{
+  "source_dataset": "C:\\Users\\kimso\\Desktop\\Technology Project\\archive\\Model_catboost\\saca_top40_dataset 1.csv",
+  "description": "Nine diseases from CatBoost training CSV (Top-40 diseases): three Mild, three Moderate, three Severe. Each entry uses one row with the maximum symptom count for that disease/severity pair.",
+  "severity_distribution_in_csv": {
+    "Severe": 6780,
+    "Moderate": 4314,
+    "Mild": 3504
+  },
+  "samples": [
+    {
+      "severity": "Mild",
+      "disease": "acute bronchitis",
+      "symptoms_positive": [
+        "congestion in chest",
+        "coryza",
+        "cough",
+        "coughing up sputum",
+        "difficulty breathing",
+        "fever",
+        "headache",
+        "nasal congestion",
+        "sharp chest pain",
+        "sore throat",
+        "wheezing"
+      ],
+      "symptom_count": 11
+    },
+    {
+      "severity": "Mild",
+      "disease": "strep throat",
+      "symptoms_positive": [
+        "ache all over",
+        "chills",
+        "cough",
+        "decreased appetite",
+        "difficulty in swallowing",
+        "ear pain",
+        "fever",
+        "nasal congestion",
+        "sore throat",
+        "vomiting"
+      ],
+      "symptom_count": 10
+    },
+    {
+      "severity": "Mild",
+      "disease": "eczema",
+      "symptoms_positive": [
+        "abnormal appearing skin",
+        "acne or pimples",
+        "cough",
+        "irregular appearing scalp",
+        "itching of skin",
+        "skin dryness, peeling, scaliness, or roughness",
+        "skin irritation",
+        "skin lesion",
+        "skin rash",
+        "skin swelling",
+        "warts"
+      ],
+      "symptom_count": 11
+    },
+    {
+      "severity": "Moderate",
+      "disease": "gout",
+      "symptoms_positive": [
+        "ankle pain",
+        "ankle swelling",
+        "foot or toe pain",
+        "foot or toe swelling",
+        "hand or finger pain",
+        "hand or finger swelling",
+        "joint pain",
+        "knee swelling",
+        "wrist pain",
+        "wrist swelling"
+      ],
+      "symptom_count": 10
+    },
+    {
+      "severity": "Moderate",
+      "disease": "esophagitis",
+      "symptoms_positive": [
+        "burning abdominal pain",
+        "chest tightness",
+        "cough",
+        "difficulty in swallowing",
+        "heartburn",
+        "nausea",
+        "sharp abdominal pain",
+        "sharp chest pain",
+        "shortness of breath",
+        "sore throat",
+        "vomiting"
+      ],
+      "symptom_count": 11
+    },
+    {
+      "severity": "Moderate",
+      "disease": "cystitis",
+      "symptoms_positive": [
+        "back pain",
+        "blood in urine",
+        "frequent urination",
+        "involuntary urination",
+        "lower abdominal pain",
+        "pelvic pain",
+        "retention of urine",
+        "sharp abdominal pain",
+        "suprapubic pain",
+        "symptoms of bladder"
+      ],
+      "symptom_count": 10
+    },
+    {
+      "severity": "Severe",
+      "disease": "pneumonia",
+      "symptoms_positive": [
+        "chills",
+        "coryza",
+        "cough",
+        "difficulty breathing",
+        "fever",
+        "nasal congestion",
+        "sharp chest pain",
+        "shortness of breath",
+        "sore throat",
+        "weakness",
+        "wheezing"
+      ],
+      "symptom_count": 11
+    },
+    {
+      "severity": "Severe",
+      "disease": "heart attack",
+      "symptoms_positive": [
+        "arm pain",
+        "burning chest pain",
+        "chest tightness",
+        "fainting",
+        "heartburn",
+        "increased heart rate",
+        "irregular heartbeat",
+        "nausea",
+        "sharp chest pain",
+        "shortness of breath",
+        "sweating"
+      ],
+      "symptom_count": 11
+    },
+    {
+      "severity": "Severe",
+      "disease": "multiple sclerosis",
+      "symptoms_positive": [
+        "abnormal involuntary movements",
+        "disturbance of memory",
+        "dizziness",
+        "fatigue",
+        "focal weakness",
+        "headache",
+        "leg weakness",
+        "loss of sensation",
+        "paresthesia",
+        "problems with movement",
+        "weakness"
+      ],
+      "symptom_count": 11
+    }
+  ]
+}
