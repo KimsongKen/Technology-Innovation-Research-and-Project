@@ -14,7 +14,7 @@ The pipeline runs in six sequential stages — each stage is a discrete NLP or M
 
 | Stage | Component | What it does |
 |-------|-----------|-------------|
-| **1 — Speech-to-Text** | `faster-whisper` (English) · Meta MMS `facebook/mms-1b-all` (Warlpiri) | Converts raw `.wav` audio into text tokens |
+| **1 — Speech-to-Text** | Groq `whisper-large-v3` (English primary) · `faster-whisper tiny.en` (offline fallback) · Meta MMS `facebook/mms-1b-all` (Warlpiri) | Converts raw `.wav` audio into text tokens |
 | **2 — Language Bridge** | `warlpiri_dict.py` — exact + Levenshtein fuzzy match | Translates Warlpiri tokens into English clinical phrases |
 | **3 — Human Verification** | Dual transcript fields (`raw_transcript` / `verified_transcript`) | Nurse confirms transcript before it drives ML scoring |
 | **4 — Lexicon Matching** | `symptom_lexicon.py` — 179 canonical phrase mappings | Normalises free-text symptoms into CatBoost feature names |
@@ -78,15 +78,14 @@ Full evaluation report: [`archive/saca_model_evaluation/final_architecture_recom
 
 ### Speech-to-Text Models
 
-#### English — faster-whisper
+#### English — Groq cloud (primary) + faster-whisper (fallback)
 
 | Property | Value |
 |----------|-------|
-| Library | `faster-whisper` (CTranslate2 backend) |
-| Default model | `small` (configurable: `medium`, `large-v3`) |
+| Primary | Groq `whisper-large-v3` via `api.groq.com` — sub-second turnaround |
+| Offline fallback | `faster-whisper` `tiny.en` (`int8`, beam=1) — used when Groq unavailable |
+| Last resort | OpenAI `whisper` tiny model |
 | Device | CPU (`int8`) by default; GPU with `SACA_WHISPER_DEVICE=cuda` + `float16` |
-| Clinical prompt | Pre-loaded vocabulary bias for medical terminology |
-| Fallback | OpenAI `whisper` tiny model |
 | Loader | `api/bridge/stt_service.py` → `STTService` |
 
 #### Warlpiri — Meta MMS
@@ -218,17 +217,32 @@ pip install -r requirements.txt
 ### 2. Start the backend
 
 ```powershell
+# Full stack: Groq cloud STT (English) + Meta MMS (Warlpiri). First run downloads ~4 GB model.
 .\run_api.ps1
+
+# Lighter — English only, no MMS download
+.\run_api.ps1 -EnglishOnly
+
+# Dev/UI testing — English Whisper used for Warlpiri too (no MMS)
+.\run_api.ps1 -WarlpiriDevFallback
+
+# Offline — no Groq, local faster-whisper only
+.\run_api.ps1 -NoGroq
 ```
 
-Or manually:
+Or manually (English only):
 
 ```powershell
+$env:SACA_USE_HOSTED_STT="1"
+$env:SACA_HOSTED_STT_PROVIDER="openai"
+$env:SACA_HOSTED_STT_BASE_URL="https://api.groq.com/openai/v1"
+$env:SACA_HOSTED_STT_MODEL="whisper-large-v3"
+$env:SACA_HOSTED_STT_API_KEY="<your-groq-key>"
 $env:SACA_USE_FASTER_WHISPER="1"
-$env:SACA_WHISPER_DEVICE="cpu"
+$env:SACA_WHISPER_MODEL="tiny.en"
 $env:SACA_WHISPER_COMPUTE_TYPE="int8"
-$env:SACA_USE_WHISPER_TINY_FALLBACK="1"
-.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
+$env:SACA_USE_MMS_WARLPIRI_STT="0"
+.\.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload --reload-dir api
 ```
 
 ### 3. Health check
@@ -290,14 +304,21 @@ Expected: **9/10 test cases pass** (TC-06 fever+cough is a known model gap, docu
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SACA_USE_FASTER_WHISPER` | `0` | Enable faster-whisper STT |
-| `SACA_WHISPER_MODEL` | `small` | Whisper model size (`small`, `medium`, `large-v3`) |
+| `SACA_USE_HOSTED_STT` | `1` | Enable Groq cloud STT (primary English path) |
+| `SACA_HOSTED_STT_PROVIDER` | `openai` | Provider type (`openai` or `openai-compatible`) |
+| `SACA_HOSTED_STT_BASE_URL` | `https://api.groq.com/openai/v1` | Cloud STT API base URL |
+| `SACA_HOSTED_STT_MODEL` | `whisper-large-v3` | Cloud model name |
+| `SACA_HOSTED_STT_API_KEY` | *(set in run_api.ps1)* | Groq API key |
+| `SACA_HOSTED_STT_TIMEOUT_SECONDS` | `30` | Cloud STT request timeout |
+| `SACA_USE_FASTER_WHISPER` | `1` | Enable local faster-whisper (offline fallback) |
+| `SACA_WHISPER_MODEL` | `tiny.en` | Whisper model size (`tiny.en`, `small`, `medium`, `large-v3`) |
 | `SACA_WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
 | `SACA_WHISPER_COMPUTE_TYPE` | `int8` | `int8`, `float16` (GPU) |
-| `SACA_USE_WHISPER_TINY_FALLBACK` | `0` | Enable tiny model as STT fallback |
-| `SACA_USE_MMS_WARLPIRI_STT` | `0` | Enable Meta MMS for Warlpiri voice |
-| `SACA_USE_HOSTED_STT` | `0` | Use OpenAI-compatible hosted transcription API |
-| `SACA_HOSTED_STT_API_KEY` | — | API key for hosted STT (or `OPENAI_API_KEY`) |
+| `SACA_USE_WHISPER_TINY_FALLBACK` | `0` | Enable openai-whisper tiny as last-resort fallback |
+| `SACA_USE_MMS_WARLPIRI_STT` | `1` | Enable Meta MMS for Warlpiri voice |
+| `SACA_MMS_MODEL_ID` | `facebook/mms-1b-all` | HuggingFace MMS model (must be 1b-all for wbp/pjt) |
+| `SACA_MMS_STT_TIMEOUT_SECONDS` | `120` | MMS inference timeout |
+| `SACA_WARLPIRI_STT_DEV_FALLBACK` | `0` | Use English STT for wbp (dev/UI testing only) |
 | `SACA_BRIDGE_AUTH_TOKEN` | `dev-token` | Bearer token for API authentication |
 | `SACA_CATBOOST_MODEL_DIR` | `archive/saca_model_evaluation/catboost_runtime_artifacts` | Path to CatBoost `.cbm` model files |
 | `SACA_LOW_CONFIDENCE_TRIAGE_THRESHOLD` | `0.40` | Confidence below this forces escalation |
@@ -354,14 +375,15 @@ The NLP pipeline is built around the principle: **missed severity is more danger
 |---------|------|
 | `catboost>=1.2.0` | ML classifier — severity + disease prediction |
 | `sentence-transformers>=2.3.0` | SBERT semantic encoder |
-| `faster-whisper>=1.0.0` | English speech-to-text |
+| `faster-whisper>=1.0.0` | Local English STT (offline fallback) |
+| `openai-whisper>=20231117` | Last-resort STT fallback |
 | `torch>=2.0.0` | Required by Meta MMS (Warlpiri STT) |
 | `transformers>=4.30.0` | Wav2Vec2 model loader for Meta MMS |
 | `fastapi>=0.109.0` | API framework |
 | `uvicorn[standard]>=0.27.0` | ASGI server |
 | `pydantic>=2.6.0` | Request/response schema validation |
-| `numpy>=1.26.0` | Feature vector construction |
-| `httpx>=0.27.0` | Hosted STT HTTP client |
+| `numpy>=1.26.0` | Audio processing + feature vector construction |
+| `httpx>=0.27.0` | Groq cloud STT HTTP client |
 
 **Training (`requirements.training.txt`)** — separate install, not needed to run the API.
 

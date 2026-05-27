@@ -1,2 +1,6 @@
 lrun this first
 $env:Path += ";C:\Users\kimso\develop\flutter\bin"
+
+
+flutter emulators --launch Pixel_8_Pro_API_31 2>&1
+flutter run -d emulator-5554

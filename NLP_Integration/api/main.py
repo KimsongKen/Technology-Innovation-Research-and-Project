@@ -1,15 +1,44 @@
+import asyncio
+import logging
+import numpy as np
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.bridge.config import CFG
-from api.bridge.router import bridge_health_snapshot, router as bridge_router
+from api.bridge.router import bridge_health_snapshot, router as bridge_router, stt_service
+
+logger = logging.getLogger("saca.startup")
+
+
+async def _prewarm_stt() -> None:
+    """Run a silent dummy transcription so the model is loaded and JIT-compiled
+    before the first real patient request arrives.  This converts a cold-start
+    30-60 s spike into a predictable sub-second response."""
+    try:
+        # 0.5 s of silence at 16 kHz — enough to exercise the full pipeline
+        dummy = np.zeros(8000, dtype=np.float32)
+        await stt_service.transcribe_audio(dummy, language="en-AU")
+        logger.info("STT model pre-warm complete (provider=%s)", stt_service.provider)
+    except Exception as exc:
+        logger.warning("STT pre-warm skipped: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    # ── startup ──────────────────────────────────────────────────────────────
+    logger.info("SACA bridge starting — pre-warming STT model in background …")
+    asyncio.create_task(_prewarm_stt())
+    yield
+    # ── shutdown ─────────────────────────────────────────────────────────────
 
 
 app = FastAPI(
     title="Swin SACA Intelligence Hub",
     description="Secure bridge API for deterministic voice triage analysis.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

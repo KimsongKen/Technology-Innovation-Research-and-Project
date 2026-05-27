@@ -1,0 +1,17 @@
+torch
+transformers
+pandas
+scikit-learn
+lightgbm
+imbalanced-learn
+torchvision
+torchaudio
+tqdm
+pyyaml
+matplotlib
+shap
+cryptography
+onnx
+skl2onnx
+onnxmltools
+onnxruntime-gpu

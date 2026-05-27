@@ -15,14 +15,14 @@ class TriageService {
     if (configured.isNotEmpty) {
       return configured;
     }
-    if (Platform.isAndroid) {
+    if (!kIsWeb && io.Platform.isAndroid) {
       // Android emulator localhost maps to itself; host machine is 10.0.2.2.
       return 'http://10.0.2.2:8000';
     }
     return 'http://127.0.0.1:8000';
   }
 
-  Future<String> transcribeAudio(File wavFile, {String languageCode = 'en'}) async {
+  Future<String> transcribeAudio(io.File wavFile, {String languageCode = 'en'}) async {
     final List<String> candidatePaths = <String>[
       '$baseUrl/triage/transcribe',
     ];

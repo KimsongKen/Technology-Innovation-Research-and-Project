@@ -169,20 +169,14 @@ class AudioPipeline:
         if sr != self.target_rate:
             waveform = _resample(waveform, sr, self.target_rate)
         waveform = _remove_dc_offset(waveform)
-        waveform = _trim_silence(waveform, self.target_rate)
+        # Normalise BEFORE trimming so the silence threshold (0.008) is applied
+        # to a consistent amplitude scale.  On quiet microphones (emulators, some
+        # Android devices) the raw RMS can be well below 0.008, causing almost all
+        # frames to be classified as silence and trimmed away → 422 too-short error.
         waveform = _rms_normalize(waveform)
+        waveform = _trim_silence(waveform, self.target_rate)
         metrics = _compute_metrics(waveform, self.target_rate)
         return waveform, metrics
-
-    def normalize_wav_to_pcm16_16k(self, wav_bytes: bytes) -> tuple[bytes, int]:
-        """Backward-compat method used by legacy callers. Prefer process_wav_bytes()."""
-        waveform, _ = self.process_wav_bytes(wav_bytes)
-        pcm = np.clip(waveform * 32767.0, -32768, 32767).astype(np.int16)
-        return pcm.tobytes(), self.target_rate
-
-    @staticmethod
-    def pcm16_to_float32(pcm16_bytes: bytes) -> np.ndarray:
-        return np.frombuffer(pcm16_bytes, dtype=np.int16).astype(np.float32) / 32768.0
 
     @staticmethod
     def float32_mono_to_wav_bytes(waveform: np.ndarray, sample_rate: int | None = None) -> bytes:

@@ -7,42 +7,49 @@ Repository path: [Technology-Innovation-Research-and-Project / saca_app_flutter]
 ## What This App Does
 
 - Capture patient input through:
-  - Voice (microphone recording + transcript review)
+  - Voice (microphone recording + STT transcript via Groq / faster-whisper)
   - Text typing
-  - Visual body-area selection
+  - Visual body-area selection (interactive 3-D body model)
 - Run triage analysis through a FastAPI backend
 - Present a clean, action-oriented result:
   - Triage level
   - Top condition
   - Recommendation
+  - Escalation alert
 
 ## Current Feature Set
 
-- Global language mode (English/Warlpiri)
-- Multi-step clinical questionnaire
-- Voice transcript append + editable verification
+- **Full bilingual UI** — English and Warlpiri (wbp) — toggle from the quick-actions menu
+- 3-D interactive body model with bilingual region labels (front + back view)
+- Multi-step clinical questionnaire (voice, text, and point-and-select modes)
+- Live pain slider — moves in real-time as STT returns speech ("six out of ten" → 6)
+- Voice transcript append + editable verification per step
 - Real-time permission UX for microphone access
-- Result dashboard with `ALERT CLINIC` and `NEW ASSESSMENT`
+- Result dashboard with `ALERT CLINIC` and `NEW ASSESSMENT` (bilingual)
 - Desktop-friendly hover interactions and modern card UI
 
 ## Project Structure
 
 ```text
 lib/
-  main.dart
+  main.dart                          — App entry, state (SACAStateScope), theme, routing
   models/
-    app_models.dart
+    app_models.dart                  — TriageSession, AppLanguage, ReportMode
   services/
-    triage_service.dart
+    triage_service.dart              — HTTP client for /triage endpoints
+    kokoro_tts_service.dart          — Text-to-speech readback (Kokoro / flutter_tts)
   screens/
-    language_and_method_pages.dart
-    workspace_and_result_pages.dart
+    language_and_method_pages.dart   — Language toggle + input method selection
+    workspace_and_result_pages.dart  — Workspace questionnaire + result pages
   widgets/
-    app_tokens.dart
-    cards.dart
-    clinical_input_card.dart
-    result_widgets.dart
+    app_tokens.dart                  — Design tokens (colours, typography)
+    cards.dart                       — Shared card widgets
+    clinical_input_card.dart         — Voice-input card (STT + live transcript)
+    body_part.dart                   — 3-D interactive body model (bilingual labels)
+    result_widgets.dart              — Assessment result cards (bilingual)
 ```
+
+All `lib/` files use `part of '../main.dart'` — they share one Dart library scope.
 
 ## Tech Stack
 
@@ -91,31 +98,42 @@ flutter run -d emulator-5554
 
 Or use your physical device ID from `flutter devices`.
 
-### 4) Build APK (debug)
+### 4) Build APK
 
 ```powershell
+# Release APK (smaller, obfuscated — use this for device testing)
+flutter build apk --release
+
+# Debug APK (larger, debug symbols included)
 flutter build apk --debug
 ```
 
-Output:
-`build/app/outputs/flutter-apk/app-debug.apk`
+Release output: `build/app/outputs/flutter-apk/app-release.apk` (~200 MB)
+Debug output:   `build/app/outputs/flutter-apk/app-debug.apk`
+
+> **Gradle KGP warning:** Several plugins (`app_settings`, `audioplayers_android`, `flutter_tts`, `record_android`, `webview_flutter_android`) still apply the Kotlin Gradle Plugin directly. This prints warnings but does **not** fail the build. Upgrade those plugins to KGP-clean versions when available.
 
 ## FastAPI Integration Contract
 
-`TriageService` currently calls:
-- Transcribe endpoints (fallback order):
-  - `/v2/transcribe`
-  - `/transcribe`
-  - `/triage/transcribe`
-- Analyze endpoints (fallback order):
-  - `/triage/analyze-voice`
-  - `/v2/triage/analyze-voice`
+`TriageService` calls with endpoint fallback chain:
+
+**Transcribe (audio → text)**
+1. `/triage/transcribe`
+2. `/v2/transcribe`
+3. `/transcribe`
+
+**Assess (text → triage)**
+1. `/triage/analyze-voice`
+2. `/v2/triage/analyze-voice`
 
 Expected response fields:
 - `triage_level`
 - `top_condition` or `predicted_disease`
 - `transcript_final` / `transcript_final_text` / `transcript`
 - `recommendation`
+
+### Warlpiri voice
+Pass `language: wbp` in the transcribe request body. The backend routes to Meta MMS (`facebook/mms-1b-all`) with graceful fallback to English STT when the adapter is unavailable.
 
 ## Troubleshooting
 
@@ -140,10 +158,10 @@ If recording returns `0 bytes`, the app fails fast and shows a user-visible erro
 
 ## Quality Status
 
-- Refactored and cleaned codebase
-- Android manifest + network config updated for local testing
-- `flutter analyze` passing
-- Debug APK build verified
+- `flutter analyze` passing (no errors or warnings)
+- Release APK build verified (`app-release.apk`, ~200 MB)
+- Bilingual body model, result page, and workspace questionnaire all tested
+- Pain slider live-update on STT transcription verified
 
 ## Useful Commands
 
@@ -153,15 +171,15 @@ flutter analyze
 flutter test
 flutter run -d windows
 flutter run -d emulator-5554
-flutter build apk --debug
+flutter build apk --release
+
+# Port-forward backend to physical Android device
+adb reverse tcp:8000 tcp:8000
 ```
 
 ## References
 
 - Project folder: [saca_app_flutter](https://github.com/KimsongKen/Technology-Innovation-Research-and-Project/tree/main/saca_app_flutter)
 - Flutter docs: [docs.flutter.dev](https://docs.flutter.dev/)
-
-
- flutter run -d emulator-
- 
+- Backend README: see `Technology Project/README.md`
 

@@ -8,6 +8,17 @@ class ClinicalInputCard extends StatefulWidget {
     required this.accentColor,
     required this.initialTranscript,
     required this.onConfirmed,
+    this.onTranscriptChanged,
+    this.voiceoverEnabled = false,
+    this.voiceoverPreamble,
+    this.language = AppLanguage.english,
+    /// When false, hides the "Tap to Speak" label row (e.g. when it has been
+    /// moved to the page-level header so it appears at the top of the screen).
+    this.showTapToSpeakLabel = true,
+    /// When true, the card returns its inner Column directly without the
+    /// LayoutBuilder / SingleChildScrollView wrapper. Use this when the card
+    /// is already inside an ancestor SingleChildScrollView (e.g. pain step).
+    this.shrinkWrap = false,
   });
 
   final String questionText;
@@ -15,6 +26,19 @@ class ClinicalInputCard extends StatefulWidget {
   final Color accentColor;
   final String initialTranscript;
   final ValueChanged<String> onConfirmed;
+  /// Optional callback fired whenever the transcript text changes — either
+  /// after STT returns a result, or when the user manually edits the field.
+  /// Use this to react to partial results in real-time (e.g. live pain slider).
+  final ValueChanged<String>? onTranscriptChanged;
+  /// When true the question is read aloud via TTS when the card appears
+  /// and whenever the question text changes.
+  final bool voiceoverEnabled;
+  /// Optional heading spoken BEFORE [questionText] (e.g. pain intensity heading).
+  final String? voiceoverPreamble;
+  /// Current app language — used to pick the most natural TTS voice.
+  final AppLanguage language;
+  final bool showTapToSpeakLabel;
+  final bool shrinkWrap;
 
   @override
   State<ClinicalInputCard> createState() => _ClinicalInputCardState();
@@ -22,6 +46,16 @@ class ClinicalInputCard extends StatefulWidget {
 
 class _ClinicalInputCardState extends State<ClinicalInputCard>
     with SingleTickerProviderStateMixin {
+  /// Called from the page-level "Tap to Speak" header pill.
+  void toggleRecording() {
+    _toggleRecording();
+  }
+
+  /// Replays the current question when voiceover is enabled.
+  void replayQuestion() {
+    _speak(widget.questionText);
+  }
+
   final AudioRecorder _recorder = AudioRecorder();
   late final AnimationController _pulseController;
   late final Animation<double> _pulseScale;
@@ -47,6 +81,26 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
     _pulseScale = Tween<double>(begin: 1.0, end: 1.16).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    if (widget.voiceoverEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _speak(widget.questionText);
+      });
+    }
+  }
+
+  /// Speak [questionText] via KokoroTtsService (Edge TTS → flutter_tts fallback).
+  ///
+  /// [voiceoverPreamble] is passed separately so that bilingual strings
+  /// (format: "English / Warlpiri") are never incorrectly concatenated before
+  /// the service splits them per language.
+  void _speak(String questionText) {
+    if (!widget.voiceoverEnabled || questionText.isEmpty) return;
+    KokoroTtsService.speak(
+      questionText,
+      preamble: widget.voiceoverPreamble,
+      language: widget.language,
+    );
   }
 
   @override
@@ -57,10 +111,21 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
         !_isProcessing) {
       _transcriptController.text = widget.initialTranscript;
     }
+    // Re-speak if voiceover toggled on or question text changes.
+    if (widget.voiceoverEnabled) {
+      if (!oldWidget.voiceoverEnabled ||
+          widget.questionText != oldWidget.questionText ||
+          widget.voiceoverPreamble != oldWidget.voiceoverPreamble) {
+        _speak(widget.questionText);
+      }
+    } else if (oldWidget.voiceoverEnabled) {
+      KokoroTtsService.stop();
+    }
   }
 
   @override
   void dispose() {
+    KokoroTtsService.stop();
     _pulseController.dispose();
     _recorder.dispose();
     _transcriptController.dispose();
@@ -155,7 +220,7 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
     final bool ok = await _ensureMicrophonePermission();
     if (!ok) return;
 
-    final Directory tempDir = await getTemporaryDirectory();
+    final io.Directory tempDir = await getTemporaryDirectory();
     final String filePath =
         '${tempDir.path}/saca_${DateTime.now().millisecondsSinceEpoch}.wav';
     _audioPath = filePath;
@@ -257,7 +322,7 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
       return;
     }
 
-    final File recordedFile = File(path);
+    final io.File recordedFile = io.File(path);
     final bool exists = await recordedFile.exists();
     if (!exists) {
       setState(() {
@@ -324,6 +389,11 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
         _transcriptController.text = '$existing ${transcript.trim()}';
       }
     });
+    // Notify parent of the new transcript so it can react immediately
+    // (e.g. move the pain slider before the user taps Confirm).
+    if (mounted) {
+      widget.onTranscriptChanged?.call(_transcriptController.text);
+    }
   }
 
   String _permissionHintText() {
@@ -350,166 +420,202 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
     final bool canConfirm =
         !_isProcessing && _transcriptController.text.trim().isNotEmpty;
 
+    final Widget innerColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        // "Tap to Speak" label row — hidden when moved to the page-level header
+        if (widget.showTapToSpeakLabel) ...<Widget>[
+          Row(
+            children: <Widget>[
+              Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'Tap to Speak',
+                  warlpiri: 'Nyangkura-pinyi',
+                ),
+                style: TextStyle(
+                  fontSize: SACATriageTypography.voiceCta,
+                  fontWeight: FontWeight.w900,
+                  color: widget.accentColor,
+                ),
+              ),
+              if (widget.voiceoverEnabled) ...<Widget>[
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Replay question',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _speak(widget.questionText),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.volume_up_rounded,
+                        size: 20,
+                        color: widget.accentColor.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+        Text(
+          widget.questionText,
+          style: TextStyle(
+            fontSize: SACATriageTypography.voiceQuestion,
+            fontWeight: FontWeight.w900,
+            height: 1.2,
+            color: SACAColorScheme.of(context).charcoal,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: ScaleTransition(
+            scale: _isRecording ? _pulseScale : const AlwaysStoppedAnimation(1),
+            child: GestureDetector(
+              onTap: _toggleRecording,
+              child: Container(
+                width: 128,
+                height: 128,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: SACAColors.deepClinicalGreen,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: _isRecording ? 0.22 : 0.12),
+                      blurRadius: _isRecording ? 26 : 16,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 56,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            _isProcessing
+                ? SACAStrings.tr(
+                    context: context,
+                    english: 'Analyzing speech...',
+                    warlpiri: 'Yuwa kuja nyinami (analyzing)...',
+                  )
+                : _isRecording
+                    ? SACAStrings.tr(
+                        context: context,
+                        english: 'Recording... Tap to stop.',
+                        warlpiri: 'Recording... Tap-kurra stop.',
+                      )
+                    : _permissionHintText(),
+            style: TextStyle(
+              color: SACAColorScheme.of(context).secondaryText,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (_permissionSuggestSettings && !_isRecording && !_isProcessing) ...<Widget>[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              onPressed: AppSettings.openAppSettings,
+              icon: const Icon(Icons.settings_outlined),
+              label: Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'Open app settings',
+                  warlpiri: 'Open app settings',
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (_isProcessing) ...<Widget>[
+          const SizedBox(height: 10),
+          const Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
+        TextField(
+          controller: _transcriptController,
+          minLines: 4,
+          maxLines: 6,
+          enabled: !_isProcessing,
+          onChanged: (String v) {
+            setState(() {});
+            widget.onTranscriptChanged?.call(v);
+          },
+          decoration: InputDecoration(
+            hintText: SACAStrings.tr(
+              context: context,
+              english: 'Transcript will appear here...',
+              warlpiri: 'Transcript nyampu kuja...',
+            ),
+            filled: true,
+            fillColor: SACAColorScheme.of(context).inputFill,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(
+                  color: SACAColorScheme.of(context).subtleBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(color: widget.accentColor, width: 2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (_transcriptController.text.trim().isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: canConfirm
+                  ? () => widget.onConfirmed(_transcriptController.text.trim())
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: widget.accentColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                SACAStrings.tr(
+                  context: context,
+                  english: 'Confirm & Continue',
+                  warlpiri: 'Yuwayi, karlipa-jarri',
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    // shrinkWrap=true: caller owns the scroll context (e.g. inside a pain-step
+    // SingleChildScrollView). Return the bare column so Flutter can measure it.
+    if (widget.shrinkWrap) return innerColumn;
+
+    // Default: own scrollable container that fills available height.
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  SACAStrings.tr(
-                    context: context,
-                    english: 'Tap to Speak',
-                    warlpiri: 'Nyangkura-pinyi',
-                  ),
-                  style: TextStyle(
-                    fontSize: SACATriageTypography.voiceCta,
-                    fontWeight: FontWeight.w900,
-                    color: widget.accentColor,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  widget.questionText,
-                  style: const TextStyle(
-                    fontSize: SACATriageTypography.voiceQuestion,
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                    color: SACAColors.charcoal,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: ScaleTransition(
-                    scale: _isRecording ? _pulseScale : const AlwaysStoppedAnimation(1),
-                    child: GestureDetector(
-                      onTap: _toggleRecording,
-                      child: Container(
-                        width: 128,
-                        height: 128,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: SACAColors.deepClinicalGreen,
-                          boxShadow: <BoxShadow>[
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: _isRecording ? 0.22 : 0.12),
-                              blurRadius: _isRecording ? 26 : 16,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.mic_rounded,
-                          color: Colors.white,
-                          size: 56,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    _isProcessing
-                        ? SACAStrings.tr(
-                            context: context,
-                            english: 'Analyzing speech...',
-                            warlpiri: 'Yuwa kuja nyinami (analyzing)...',
-                          )
-                        : _isRecording
-                            ? SACAStrings.tr(
-                                context: context,
-                                english: 'Recording... Tap to stop.',
-                                warlpiri: 'Recording... Tap-kurra stop.',
-                              )
-                            : _permissionHintText(),
-                    style: const TextStyle(
-                      color: SACAColors.secondaryText,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                if (_permissionSuggestSettings && !_isRecording && !_isProcessing) ...<Widget>[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.center,
-                    child: TextButton.icon(
-                      onPressed: AppSettings.openAppSettings,
-                      icon: const Icon(Icons.settings_outlined),
-                      label: Text(
-                        SACAStrings.tr(
-                          context: context,
-                          english: 'Open app settings',
-                          warlpiri: 'Open app settings',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                if (_isProcessing) ...<Widget>[
-                  const SizedBox(height: 10),
-                  const Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 3),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _transcriptController,
-                  minLines: 4,
-                  maxLines: 6,
-                  enabled: !_isProcessing,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: SACAStrings.tr(
-                      context: context,
-                      english: 'Transcript will appear here...',
-                      warlpiri: 'Transcript nyampu kuja...',
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: SACAColors.subtleBorder),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide(color: widget.accentColor, width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (_transcriptController.text.trim().isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: canConfirm
-                          ? () => widget.onConfirmed(_transcriptController.text.trim())
-                          : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: widget.accentColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        SACAStrings.tr(
-                          context: context,
-                          english: 'Confirm & Continue',
-                          warlpiri: 'Confirm & Continue',
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: innerColumn,
           ),
         );
       },

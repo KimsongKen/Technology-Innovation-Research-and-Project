@@ -113,6 +113,7 @@ async def _transcribe_upload(
                     asyncio.to_thread(transcribe_mms_waveform, waveform),
                     timeout=CFG.mms_stt_timeout_seconds,
                 )
+                stt_provider = "mms-warlpiri"
             except (TimeoutError, asyncio.TimeoutError) as exc:
                 raise HTTPException(
                     status_code=504,
@@ -120,8 +121,20 @@ async def _transcribe_upload(
                     "or raise SACA_MMS_STT_TIMEOUT_SECONDS.",
                 ) from exc
             except Exception as exc:
-                raise HTTPException(status_code=503, detail=f"MMS transcription failed: {exc}") from exc
-            stt_provider = "mms-warlpiri"
+                # MMS adapter unavailable for this model checkpoint (e.g. facebook/mms-300m
+                # may not carry wbp/pjt adapters). Fall back to English Whisper so the app
+                # stays functional — the Warlpiri dictionary bridge still runs on the result.
+                logger.warning(
+                    "MMS transcription failed — adapter may not exist in model %s. "
+                    "Falling back to English STT for wbp request. "
+                    "Use SACA_MMS_MODEL_ID=facebook/mms-1b-all for full adapter support. "
+                    "Error: %s",
+                    CFG.mms_model_id,
+                    exc,
+                )
+                stt = await stt_service.transcribe_audio(waveform, language="en-AU")
+                transcript = stt.text
+                stt_provider = f"{stt.provider}-wbp-mms-fallback"
         elif CFG.warlpiri_stt_dev_fallback_english:
             logger.warning(
                 "Warlpiri (wbp) voice using English STT only (SACA_WARLPIRI_STT_DEV_FALLBACK=1); "

@@ -64,12 +64,6 @@ class STTService:
     def provider(self) -> str:
         return self._provider
 
-    async def transcribe_partial(self, waveform: np.ndarray, language: str) -> STTResult:
-        return await self.transcribe_audio(waveform, language=language)
-
-    async def transcribe_final(self, waveform: np.ndarray, language: str) -> STTResult:
-        return await self.transcribe_audio(waveform, language=language)
-
     async def transcribe_audio(self, waveform: np.ndarray, language: str = "en-AU") -> STTResult:
         if waveform.size == 0:
             return STTResult(text="", confidence=0.0, provider="empty-audio")

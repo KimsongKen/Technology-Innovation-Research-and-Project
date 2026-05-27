@@ -1,0 +1,68 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+secrets.ps1
+secrets.cmd
+*.secrets.ps1
+
+# --- Runtime / uploads (voice recordings from live sessions) ---
+output/uploads/
+temp/
+
+# --- Debug / session audio (temp runtime dumps, not test fixtures) ---
+temp/audio_debug/
+temp/transcript_audit/
+
+# --- WAV files: exclude runtime recordings, keep test fixtures ---
+*.wav
+!tests/audio/*.wav
+
+# --- Large model / training artifacts ---
+# Exclude raw pytorch checkpoints and ONNX exports (too large for standard git)
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# CatBoost trained models: KEEP the runtime artifacts (proof of training + needed by API)
+# They are 11 MB + 1 MB — within GitHub's 50 MB warning threshold
+# Only exclude catboost training logs (not needed at runtime)
+catboost_info/
+archive/saca_model_evaluation/catboost_info/
+
+# Dataset files: exclude raw training data from root/archive copies,
+# keep the canonical dataset in data/
+archive/Model_catboost/*.csv
+archive/saca_model_evaluation/*.csv
+
+# Duplicate or archived pickle artifacts (ExtraNG is fully removed)
+# Nothing to exclude here now — ExtraNG folder deleted
+
+# HF / torch caches (downloaded SBERT / MMS weights — auto-downloaded at runtime)
+.cache/
+**/models--*/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
