@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:http/http.dart' as http;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa_onnx;
@@ -115,7 +115,11 @@ class _SACAAppState extends State<SACAApp> {
     // Rebuild MaterialApp whenever isDarkMode changes.
     _state.addListener(_onAppStateChanged);
     // Start Kokoro TTS — initialises from disk if model is already downloaded.
-    KokoroTtsService.checkAndInit();
+    KokoroTtsService.checkAndInit().then((_) {
+      // After init, warm up both TTS engines in the background so the
+      // first speak() call on the voice-input page is instant.
+      KokoroTtsService.warmUp();
+    });
   }
 
   @override

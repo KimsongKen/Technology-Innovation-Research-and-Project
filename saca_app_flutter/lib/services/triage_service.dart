@@ -1,5 +1,75 @@
 part of '../main.dart';
 
+// ── Warlpiri → English medical vocabulary bridge ─────────────────────────────
+// SBERT was trained on English only. Warlpiri words produce near-zero
+// embeddings, causing misclassification (e.g. heart attack → multiple sclerosis).
+// This map substitutes known Warlpiri clinical terms with their English
+// equivalents BEFORE the text reaches the SBERT embedding layer.
+// Add more entries as the vocabulary grows — keys are lowercase Warlpiri words
+// or common code-switched phrases.
+const Map<String, String> _kWarlpiriMedicalVocab = <String, String>{
+  // Pain / body
+  'warlu':         'pain',
+  'karlarra':      'chest pain',
+  'kurduju':       'strong severe',
+  'pirli-pirli':   'shaking trembling',
+  'parnkami':      'running out of breath',
+  'nyinami':       'experiencing feeling',
+  'warlkirri':     'squeezing tight pressure',
+  'warlaljarrimi': 'squeezing crushing pain',
+  'rdaka':         'arm hand',
+  'wirliya':       'foot leg',
+  'yirrarni':      'feeling sensation',
+  // Severity / urgency
+  'panu':          'worse severe',
+  'kapingkilypa':  'rapidly quickly',
+  'wiri':          'big large severe',
+  'jaru':          'spreading radiating',
+  // Symptoms
+  'kirda-kirda':   'dizziness lightheadedness',
+  'nyiya-nyiyami': 'nausea vomiting',
+  'yimi':          'breathing difficulty',
+  'wangkarra':     'difficulty speaking',
+  // Body parts
+  'marlu':         'heart',
+  'ngurra':        'body chest',
+  'munga':         'head',
+  'wanta':         'left side',
+  // Duration / onset
+  'jinta-kurra':   '1 day',
+  'jirrama-kurra': '2 to 3 days',
+  'manu-kurra':    '4 to 6 days',
+  // Medications / allergies
+  'pawuju':        'medication medicine',
+  'yarnunjuku':    'allergy allergic reaction',
+  // Common verbs relevant to clinical context
+  'nyinaja':       'started began',
+  'pina':          'back again',
+  'karlipa':       'going moving',
+  'pitjiri':       'coming arriving',
+};
+
+/// Translates Warlpiri words in [text] to English equivalents using
+/// [_kWarlpiriMedicalVocab]. Leaves English words and unknown Warlpiri
+/// words unchanged. Used only when [languageCode] is 'wbp'.
+String _translateWarlpiriToEnglish(String text) {
+  if (text.trim().isEmpty) return text;
+  // Split on whitespace, replace known tokens, rejoin.
+  final List<String> tokens = text.split(RegExp(r'\s+'));
+  final List<String> translated = tokens.map((String token) {
+    // Strip trailing punctuation before lookup, restore after.
+    final String clean = token
+        .replaceAll(RegExp(r'[.,;:!?]+$'), '')
+        .toLowerCase();
+    final String suffix = token.substring(clean.length < token.length
+        ? clean.length
+        : token.length);
+    final String? mapped = _kWarlpiriMedicalVocab[clean];
+    return mapped != null ? '$mapped$suffix' : token;
+  }).toList();
+  return translated.join(' ');
+}
+
 class TriageService {
   TriageService({
     String? baseUrl,
@@ -16,8 +86,10 @@ class TriageService {
       return configured;
     }
     if (!kIsWeb && io.Platform.isAndroid) {
-      // Android emulator localhost maps to itself; host machine is 10.0.2.2.
-      return 'http://10.0.2.2:8000';
+      // 127.0.0.1 works for both:
+      //   - Real device via USB with `adb reverse tcp:8000 tcp:8000`
+      //   - Emulator (10.0.2.2 also works on emulator, but 127.0.0.1 via adb reverse works too)
+      return 'http://127.0.0.1:8000';
     }
     return 'http://127.0.0.1:8000';
   }
@@ -103,6 +175,8 @@ class TriageService {
     final String narrative = [
       session.chiefComplaint,
       'Pain intensity (1–10 scale, 10 = unbearable): $painScore',
+      if (session.symptomDurationDays.trim().isNotEmpty)
+        'Symptom duration: ${session.symptomDurationDays.trim()}',
       if (session.onset.isNotEmpty) 'Onset: ${session.onset}',
       if (session.medications.isNotEmpty) 'Medications: ${session.medications}',
       if (session.allergies.isNotEmpty) 'Allergies: ${session.allergies}',
@@ -115,6 +189,8 @@ class TriageService {
     final String enrichedVerified = [
       verifiedCore,
       'Pain intensity (1–10, 10 = unbearable pain): $painScore',
+      if (session.symptomDurationDays.trim().isNotEmpty)
+        'Duration: ${session.symptomDurationDays.trim()}',
       if (session.additionalConcerns.trim().isNotEmpty)
         'Other symptoms or concerns: ${session.additionalConcerns.trim()}',
     ].where((String s) => s.trim().isNotEmpty).join('. ');
@@ -124,15 +200,28 @@ class TriageService {
     final String rawTranscript = (_lastRawTranscript ?? verifiedCore).trim();
     final String languageCode = language == AppLanguage.warlpiri ? 'wbp' : 'en';
 
+    // ── Warlpiri → English translation for SBERT ──────────────────────────
+    // SBERT only understands English. When input is Warlpiri we translate
+    // known medical vocabulary before embedding so the ML model gets a
+    // semantically meaningful vector instead of near-zero unknowns.
+    final String sttRaw = rawTranscript.isEmpty ? narrative : rawTranscript;
+    final String sttVerified =
+        verifiedTranscript.isEmpty ? narrative : verifiedTranscript;
+    final String finalRaw = languageCode == 'wbp'
+        ? _translateWarlpiriToEnglish(sttRaw)
+        : sttRaw;
+    final String finalVerified = languageCode == 'wbp'
+        ? _translateWarlpiriToEnglish(sttVerified)
+        : sttVerified;
+
     final List<String> predictUrls = <String>['$baseUrl/triage/predict'];
 
     for (final String url in predictUrls) {
       try {
         final Uri uri = Uri.parse(url);
         final Map<String, dynamic> payload = <String, dynamic>{
-          'raw_transcript': rawTranscript.isEmpty ? narrative : rawTranscript,
-          'verified_transcript':
-              verifiedTranscript.isEmpty ? narrative : verifiedTranscript,
+          'raw_transcript': finalRaw,
+          'verified_transcript': finalVerified,
           'language': languageCode,
         };
         final http.Response response = await http

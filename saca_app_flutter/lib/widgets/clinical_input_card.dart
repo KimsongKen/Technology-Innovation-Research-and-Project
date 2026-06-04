@@ -70,6 +70,15 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
 
   String? _audioPath;
 
+  // ── Streaming / interim transcription ──────────────────────────────────────
+  // Every [_kChunkInterval] seconds while recording, the current audio is
+  // flushed to the backend and a partial transcript is shown immediately.
+  // This gives the user live feedback without waiting for a full recording.
+  static const Duration _kChunkInterval = Duration(seconds: 4);
+  Timer? _chunkTimer;
+  String _partialAccumulated = ''; // running transcript across all chunks
+  bool _isChunkProcessing  = false; // guards against overlapping chunk calls
+
   @override
   void initState() {
     super.initState();
@@ -125,11 +134,65 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
 
   @override
   void dispose() {
+    _chunkTimer?.cancel();
     KokoroTtsService.stop();
     _pulseController.dispose();
     _recorder.dispose();
     _transcriptController.dispose();
     super.dispose();
+  }
+
+  // ── Chunk-based interim transcription ──────────────────────────────────────
+  // Fires every [_kChunkInterval] while the user is recording. It stops the
+  // current WAV, transcribes it, restarts recording into a fresh file, and
+  // appends the new words to the displayed transcript — giving live feedback
+  // and dramatically reducing the wait after the user taps Stop.
+  Future<void> _processChunk() async {
+    if (!_isRecording || _isChunkProcessing || !mounted) return;
+    _isChunkProcessing = true;
+
+    try {
+      // Pause the recorder and grab the current file.
+      await _recorder.stop();
+      final String? chunkPath = _audioPath;
+
+      // Immediately restart recording into a new file so audio is never lost.
+      final io.Directory tempDir = await getTemporaryDirectory();
+      final String newPath =
+          '${tempDir.path}/saca_chunk_${DateTime.now().millisecondsSinceEpoch}.wav';
+      _audioPath = newPath;
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000, numChannels: 1),
+        path: newPath,
+      );
+
+      if (chunkPath == null) { _isChunkProcessing = false; return; }
+      final io.File chunkFile = io.File(chunkPath);
+      if (!await chunkFile.exists() || await chunkFile.length() < 2000) {
+        _isChunkProcessing = false;
+        return; // too short — skip
+      }
+
+      final AppLanguage lang = SACAStateScope.of(context).selectedLanguage;
+      final String langCode = lang == AppLanguage.warlpiri ? 'wbp' : 'en';
+      final String partial = await widget.triageService
+          .transcribeAudio(chunkFile, languageCode: langCode);
+
+      if (partial.trim().isNotEmpty && mounted) {
+        final String sep = _partialAccumulated.isEmpty ? '' : ' ';
+        _partialAccumulated += '$sep${partial.trim()}';
+        setState(() {
+          _transcriptController.text = _partialAccumulated;
+          _transcriptController.selection = TextSelection.collapsed(
+              offset: _transcriptController.text.length);
+        });
+        widget.onTranscriptChanged?.call(_partialAccumulated);
+      }
+    } catch (_) {
+      // Chunk failed — silently continue; full transcription on Stop covers it.
+    } finally {
+      _isChunkProcessing = false;
+    }
   }
 
   Future<void> _showOpenSettingsDialog() async {
@@ -236,11 +299,19 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
       path: _audioPath!,
     );
 
+    // Reset interim accumulator for this new recording session.
+    _partialAccumulated = '';
+
     setState(() {
       _isRecording = true;
       _recordingStartedAt = DateTime.now();
     });
     _pulseController.repeat(reverse: true);
+
+    // Start the chunk timer — fires every [_kChunkInterval] to send partial
+    // audio to the backend and update the transcript live.
+    _chunkTimer?.cancel();
+    _chunkTimer = Timer.periodic(_kChunkInterval, (_) => _processChunk());
   }
 
   void _showZeroByteError() {
@@ -262,6 +333,10 @@ class _ClinicalInputCardState extends State<ClinicalInputCard>
 
   Future<void> _stopAndTranscribe() async {
     if (!_isRecording) return;
+
+    // Cancel chunk timer before stopping so no chunk fires during final upload.
+    _chunkTimer?.cancel();
+    _chunkTimer = null;
 
     setState(() => _isProcessing = true);
     _pulseController.stop();

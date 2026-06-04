@@ -14,6 +14,7 @@ class TriageSession {
     required this.painLocation,
     this.painScore = 5,
     this.additionalConcerns = '',
+    this.symptomDurationDays = '',
   });
 
   String chiefComplaint;
@@ -26,6 +27,10 @@ class TriageSession {
   /// Numeric pain rating 1 (mild) – 10 (unbearable).
   int painScore;
   String additionalConcerns;
+
+  /// How long the patient has had symptoms: '1 day', '2-3 days',
+  /// '4-6 days', or '7 days or more'.
+  String symptomDurationDays;
 }
 
 class TriageApiResult {

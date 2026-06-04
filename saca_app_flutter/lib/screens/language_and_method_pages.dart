@@ -521,31 +521,28 @@ class ReportingMethodPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      _PageBackButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                      Row(
+                        children: <Widget>[
+                          _PageBackButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          const Spacer(),
+                          const SACAQuickActions(),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      Stack(
-                        children: <Widget>[
-                          _WindowHeader(
-                            icon: Icons.assignment_rounded,
-                            title: SACAStrings.tr(
-                              context: context,
-                              english: 'How to report',
-                              warlpiri: 'Report nyampu',
-                            ),
-                            subtitle: SACAStrings.tr(
-                              context: context,
-                              english: 'Choose one clinical input method',
-                              warlpiri: 'Clinical input nyampu pina',
-                            ),
-                          ),
-                          const Positioned(
-                            top: 8,
-                            right: 4,
-                            child: SACAQuickActions(color: Colors.white),
-                          ),
-                        ],
+                      _WindowHeader(
+                        icon: Icons.assignment_rounded,
+                        title: SACAStrings.tr(
+                          context: context,
+                          english: 'How to report',
+                          warlpiri: 'Report nyampu',
+                        ),
+                        subtitle: SACAStrings.tr(
+                          context: context,
+                          english: 'Choose one clinical input method',
+                          warlpiri: 'Clinical input nyampu pina',
+                        ),
                       ),
                       const SizedBox(height: 22),
                       Expanded(
@@ -696,32 +693,26 @@ class _MobileReportingMethod extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
       children: <Widget>[
-        Align(
-          alignment: Alignment.centerLeft,
-          child: _PageBackButton(onPressed: () => Navigator.of(context).pop()),
+        Row(
+          children: <Widget>[
+            _PageBackButton(onPressed: () => Navigator.of(context).pop()),
+            const Spacer(),
+            const SACAQuickActions(),
+          ],
         ),
         const SizedBox(height: 10),
-        Stack(
-          children: <Widget>[
-            _MobileHeader(
-              icon: Icons.assignment_rounded,
-              title: SACAStrings.tr(
-                context: context,
-                english: 'How to report',
-                warlpiri: 'Report nyampu',
-              ),
-              subtitle: SACAStrings.tr(
-                context: context,
-                english: 'Choose one clinical input method',
-                warlpiri: 'Clinical input nyampu pina',
-              ),
-            ),
-            const Positioned(
-              top: 4,
-              right: 0,
-              child: SACAQuickActions(color: Colors.white),
-            ),
-          ],
+        _MobileHeader(
+          icon: Icons.assignment_rounded,
+          title: SACAStrings.tr(
+            context: context,
+            english: 'How to report',
+            warlpiri: 'Report nyampu',
+          ),
+          subtitle: SACAStrings.tr(
+            context: context,
+            english: 'Choose one clinical input method',
+            warlpiri: 'Clinical input nyampu pina',
+          ),
         ),
         const SizedBox(height: 18),
         for (final ReportModeCardData data in methods) ...<Widget>[
@@ -741,11 +732,13 @@ class _WindowHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.actions,
   });
 
   final IconData icon;
   final String   title;
   final String   subtitle;
+  final Widget?  actions;
 
   @override
   Widget build(BuildContext context) {
@@ -776,6 +769,7 @@ class _WindowHeader extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           // Icon circle with glow
           Container(
@@ -828,6 +822,10 @@ class _WindowHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (actions != null) ...<Widget>[
+            const SizedBox(width: 12),
+            actions!,
+          ],
         ],
       ),
     );
@@ -839,11 +837,13 @@ class _MobileHeader extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.actions,
   });
 
   final IconData icon;
   final String   title;
   final String   subtitle;
+  final Widget?  actions;
 
   @override
   Widget build(BuildContext context) {
@@ -873,6 +873,7 @@ class _MobileHeader extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Container(
             width: 48,
@@ -917,6 +918,10 @@ class _MobileHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (actions != null) ...<Widget>[
+            const SizedBox(width: 8),
+            actions!,
+          ],
         ],
       ),
     );

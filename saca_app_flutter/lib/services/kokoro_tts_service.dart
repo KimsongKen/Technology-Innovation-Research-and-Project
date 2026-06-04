@@ -65,6 +65,14 @@ void _kokoroIsolateMain(SendPort toMain) {
           toMain.send(<dynamic>['error', e.toString()]);
         }
 
+      // ── Warm-up: prime the ONNX graph, no reply needed ────────────────
+      case 'warmup':
+        try {
+          tts?.generate(text: '.', sid: 0, speed: 1.0);
+          // Result discarded — this JIT-compiles the ONNX graph so the
+          // first real synthesis returns in milliseconds, not seconds.
+        } catch (_) {}
+
       // ── Shutdown ───────────────────────────────────────────────────────
       case 'stop':
         tts?.free();
@@ -82,6 +90,10 @@ class KokoroTtsService {
       ValueNotifier<KokoroState>(KokoroState.notDownloaded);
   static final ValueNotifier<double> progressNotifier =
       ValueNotifier<double>(0.0);
+  /// Whether Kokoro is the active voice engine. When false the app falls
+  /// back to the built-in FlutterTts even if the model is downloaded.
+  static final ValueNotifier<bool> enabledNotifier =
+      ValueNotifier<bool>(true);
   static String? lastError;
 
   /// Speed slider value: 0.0 (🐢) … 1.0 (🐇). Set by [SACAAppState].
@@ -134,6 +146,48 @@ class KokoroTtsService {
     }
   }
 
+  /// Pre-warm both TTS engines in the background at app startup.
+  ///
+  /// FlutterTts: initialises the platform engine, calls getVoices() once and
+  /// caches the result — so the first real speak() call is instant.
+  ///
+  /// Kokoro: if the model is loaded, sends a warm-up synthesis to the isolate
+  /// so the ONNX computation graph is JIT-compiled before the user reaches the
+  /// voice-input section, eliminating the 2-3 second first-run delay.
+  static void warmUp() {
+    // FlutterTts warm-up: only run on Android.
+    // On Android, getVoices() is a slow platform call that causes a 2-3 s
+    // cold-start delay — pre-initialising eliminates it.
+    // On Windows, the SAPI synthesizer initialises early and conflicts with
+    // the audio stack when the voice section opens, so we skip it there.
+    if (!kIsWeb && io.Platform.isAndroid) {
+      _primeFlutterTts();
+    }
+    // Kokoro ONNX warm-up — only if the isolate is already running.
+    if (stateNotifier.value == KokoroState.ready && _toIsolate != null) {
+      try { _toIsolate!.send(<dynamic>['warmup']); } catch (_) {}
+    }
+  }
+
+  /// Initialises the FlutterTts instance and applies base config so the
+  /// first real speak() call doesn't pay the cold-start cost.
+  ///
+  /// We deliberately do NOT call _setupFttsVoice / getVoices() here.
+  /// getVoices() is a slow platform call and if it runs concurrently with
+  /// a real speak() that also calls getVoices() (before the cache is warm)
+  /// it causes a crash on Android. The first real speak() will populate the
+  /// cache; all subsequent calls are instant.
+  static Future<void> _primeFlutterTts() async {
+    try {
+      _ftts ??= FlutterTts();
+      if (!_fttsBaseConfigured) {
+        await _ftts!.setVolume(1.0);
+        await _ftts!.awaitSpeakCompletion(true);
+        _fttsBaseConfigured = true;
+      }
+    } catch (_) {}
+  }
+
   /// Download model, extract, then initialise. Safe to call multiple times.
   static Future<void> downloadAndInit() async {
     final KokoroState s = stateNotifier.value;
@@ -157,28 +211,53 @@ class KokoroTtsService {
   }
 
   static Future<void> _downloadAndExtract(io.Directory base) async {
+    // Stream the download straight to a temp file so we never hold 326 MB of
+    // compressed data in the Dart heap (a List<int> would use far more than
+    // the raw byte size and risks OOM on Android).
+    final io.Directory tmp = await getTemporaryDirectory();
+    final io.File tmpArchive = io.File(
+      '${tmp.path}${io.Platform.pathSeparator}saca_kokoro_dl.tar.bz2',
+    );
+
     final http.Client client = http.Client();
     try {
+      // ── 1. Download ───────────────────────────────────────────────────────
       final http.StreamedResponse resp =
           await client.send(http.Request('GET', Uri.parse(_archiveUrl)));
-      final int total = resp.contentLength ?? 0;
-      int received = 0;
-      final List<int> bytes = <int>[];
 
-      await for (final List<int> chunk in resp.stream) {
-        bytes.addAll(chunk);
-        received += chunk.length;
-        if (total > 0) progressNotifier.value = received / total;
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        throw Exception('Download failed: HTTP ${resp.statusCode}');
+      }
+
+      final int total   = resp.contentLength ?? 0;
+      int      received = 0;
+      final io.IOSink sink = tmpArchive.openWrite();
+      try {
+        await for (final List<int> chunk in resp.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total > 0) progressNotifier.value = received / total;
+        }
+      } finally {
+        await sink.close();
       }
       progressNotifier.value = 1.0;
 
-      // Decompress + untar
-      final Uint8List compressed = Uint8List.fromList(bytes);
-      final List<int> tarBytes   = BZip2Decoder().decodeBytes(compressed);
-      final Archive   archive    = TarDecoder().decodeBytes(tarBytes);
+      // ── 2. Decompress + untar from disk (low heap overhead) ───────────────
+      // InputFileStream reads the .bz2 in buffered chunks from disk rather
+      // than requiring the full 326 MB to be loaded into the Dart heap first.
+      final InputFileStream bzStream = InputFileStream(tmpArchive.path);
+      late final Archive archive;
+      try {
+        final List<int> tarBytes = BZip2Decoder().decodeBuffer(bzStream);
+        archive = TarDecoder().decodeBytes(tarBytes);
+      } finally {
+        bzStream.close();
+      }
 
+      // ── 3. Write files to the documents directory ─────────────────────────
       for (final ArchiveFile entry in archive.files) {
-        if (!entry.isFile) { continue; }
+        if (!entry.isFile) continue;
         final String outPath =
             '${base.path}${io.Platform.pathSeparator}'
             '${entry.name.replaceAll('/', io.Platform.pathSeparator)}';
@@ -188,6 +267,8 @@ class KokoroTtsService {
       }
     } finally {
       client.close();
+      // Always clean up the temp download file.
+      try { await tmpArchive.delete(); } catch (_) {}
     }
   }
 
@@ -248,6 +329,8 @@ class KokoroTtsService {
       // Wait up to 30 s for the model to load in the isolate.
       await readyCompleter.future.timeout(const Duration(seconds: 30));
       stateNotifier.value = KokoroState.ready;
+      // Prime the ONNX graph immediately so first real synthesis is instant.
+      try { _toIsolate!.send(<dynamic>['warmup']); } catch (_) {}
     } catch (e) {
       lastError = e.toString();
       stateNotifier.value = KokoroState.error;
@@ -293,7 +376,9 @@ class KokoroTtsService {
           .where((String s) => s.isNotEmpty)
           .join('. ');
       final String toSpeak = wrlText.isNotEmpty ? wrlText : text;
-      if (stateNotifier.value == KokoroState.ready && _toIsolate != null) {
+      if (stateNotifier.value == KokoroState.ready &&
+          _toIsolate != null &&
+          enabledNotifier.value) {
         await _kokoroSpeak(toSpeak, gen, warlpiri: true);
       } else {
         await _warlpiriSpeak(toSpeak, gen);
@@ -303,7 +388,9 @@ class KokoroTtsService {
       final String engText = <String>[pParts[0], tParts[0]]
           .where((String s) => s.isNotEmpty)
           .join('. ');
-      if (stateNotifier.value == KokoroState.ready && _toIsolate != null) {
+      if (stateNotifier.value == KokoroState.ready &&
+          _toIsolate != null &&
+          enabledNotifier.value) {
         await _kokoroSpeak(engText, gen);
       } else {
         await _englishFallbackSpeak(engText, gen);
@@ -489,9 +576,20 @@ class KokoroTtsService {
   }
 
   static Future<io.Directory> _modelDir() async {
-    final io.Directory docs = await getApplicationDocumentsDirectory();
+    // On Android we use the app-specific external storage directory
+    // (/storage/emulated/0/Android/data/<pkg>/files/saca_kokoro).
+    // Unlike internal app_flutter storage, this path is reachable via
+    // `adb push` and USB file transfer without root, which lets you
+    // pre-load the model from a laptop when the phone has no internet.
+    // On all other platforms fall back to the standard documents directory.
+    io.Directory? base;
+    if (!kIsWeb && io.Platform.isAndroid) {
+      base = await getExternalStorageDirectory();
+    }
+    base ??= await getApplicationDocumentsDirectory();
+
     final io.Directory dir = io.Directory(
-      '${docs.path}${io.Platform.pathSeparator}saca_kokoro',
+      '${base.path}${io.Platform.pathSeparator}saca_kokoro',
     );
     await dir.create(recursive: true);
     return dir;

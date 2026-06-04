@@ -734,7 +734,7 @@ class _TriageHeaderState extends State<_TriageHeader>
                         color:          triageColor,
                         targetProgress: ringFill,
                         sublabel: widget.triageLevel.split(' ').first.toUpperCase(),
-                        size:     148,
+                        size:     110,
                       ),
                       const SizedBox(height: 8),
                       // ── Severity info button ─────────────────────────────
@@ -849,14 +849,18 @@ class _TriageHeaderState extends State<_TriageHeader>
                         ),
                         const SizedBox(height: 6),
 
-                        // Disease name
-                        Text(
-                          widget.topCondition,
-                          style: TextStyle(
-                            color:      cs.charcoal,
-                            fontSize:   20,
-                            height:     1.25,
-                            fontWeight: FontWeight.w800,
+                        // Disease name — FittedBox prevents mid-word breaks
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            widget.topCondition,
+                            style: TextStyle(
+                              color:      cs.charcoal,
+                              fontSize:   20,
+                              height:     1.25,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),

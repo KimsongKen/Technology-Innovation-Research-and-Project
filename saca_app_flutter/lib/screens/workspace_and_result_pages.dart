@@ -331,6 +331,182 @@ class _PainIntensityBlock extends StatelessWidget {
   }
 }
 
+// ── Shared onset-duration question (step 2 in all triage flows) ─────────────
+
+class _DurationOption {
+  const _DurationOption({
+    required this.value,
+    required this.labelEn,
+    required this.labelWrl,
+    required this.icon,
+  });
+
+  final String value;
+  final String labelEn;
+  final String labelWrl;
+  final IconData icon;
+}
+
+const _kDurationOptions = <_DurationOption>[
+  _DurationOption(
+    value: '1 day',
+    labelEn: '1 day',
+    labelWrl: 'Jinta-kurra yunga',
+    icon: Icons.looks_one_rounded,
+  ),
+  _DurationOption(
+    value: '2-3 days',
+    labelEn: '2 – 3 days',
+    labelWrl: 'Jirrama-kurra yunga',
+    icon: Icons.looks_two_rounded,
+  ),
+  _DurationOption(
+    value: '4-6 days',
+    labelEn: '4 – 6 days',
+    labelWrl: 'Manu-kurra yunga',
+    icon: Icons.filter_alt_rounded,
+  ),
+  _DurationOption(
+    value: '7 days or more',
+    labelEn: '7 days or more',
+    labelWrl: 'Kurdu-kurdu yunga manu',
+    icon: Icons.date_range_rounded,
+  ),
+];
+
+const _kOnsetDurationQuestionEn =
+    'How long have you been experiencing these symptoms?';
+const _kOnsetDurationQuestionWrl =
+    'Nyarrpa-kurlangu kuja nyuntu karlarra nyinami?';
+
+class _OnsetDurationStep extends StatelessWidget {
+  const _OnsetDurationStep({
+    required this.selected,
+    required this.onSelected,
+    required this.accentColor,
+  });
+
+  final String selected;
+  final ValueChanged<String> onSelected;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final SACAColorScheme cs = SACAColorScheme.of(context);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final AppLanguage lang = SACAStateScope.of(context).selectedLanguage;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          SACAStrings.tr(
+            context: context,
+            english: 'Tap the option that best matches your situation.',
+            warlpiri: 'Paniki-rla nyuntu kuja karrija.',
+          ),
+          style: TextStyle(
+            color: cs.secondaryText,
+            fontSize: SACATriageTypography.sectionSub,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: ListView.separated(
+            itemCount: _kDurationOptions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (BuildContext ctx, int i) {
+              final _DurationOption opt = _kDurationOptions[i];
+              final bool chosen = selected == opt.value;
+              return GestureDetector(
+                onTap: () => onSelected(opt.value),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: chosen
+                        ? accentColor.withValues(alpha: isDark ? 0.22 : 0.10)
+                        : cs.cardBackground,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: chosen ? accentColor : cs.subtleBorder,
+                      width: chosen ? 2.0 : 1.0,
+                    ),
+                    boxShadow: chosen
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: accentColor.withValues(alpha: 0.18),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: chosen
+                              ? accentColor.withValues(alpha: 0.18)
+                              : cs.inputFill,
+                        ),
+                        child: Icon(
+                          opt.icon,
+                          color: chosen ? accentColor : cs.secondaryText,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              lang == AppLanguage.warlpiri
+                                  ? opt.labelWrl
+                                  : opt.labelEn,
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: chosen ? accentColor : cs.charcoal,
+                              ),
+                            ),
+                            if (lang == AppLanguage.warlpiri)
+                              Text(
+                                opt.labelEn,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: cs.secondaryText,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (chosen)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: accentColor,
+                          size: 26,
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class WorkspacePage extends StatefulWidget {
   const WorkspacePage({
     super.key,
@@ -356,6 +532,9 @@ class _WorkspacePageState extends State<WorkspacePage> {
   int _currentStep = 0;
   bool _isWorsening = false;
   final Map<int, String> _capturedAnswers = <int, String>{};
+
+  /// Selected onset duration — second question (step index 1) in voice/text flow.
+  String _selectedOnsetOption = '';
 
   @override
   void dispose() {
@@ -385,6 +564,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
       _currentStep = 0;
       _capturedAnswers.clear();
       _isWorsening = false;
+      _selectedOnsetOption = '';
       _chiefComplaintController.clear();
       _medicationsController.clear();
       _allergiesController.clear();
@@ -396,6 +576,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
       _session.painLocation.clear();
       _session.painScore = 5;
       _session.additionalConcerns = '';
+      _session.symptomDurationDays = '';
     });
   }
 
@@ -413,7 +594,14 @@ class _WorkspacePageState extends State<WorkspacePage> {
   Widget build(BuildContext context) {
     final WorkspaceConfig config = _workspaceConfig(context);
 
+    // On Android the soft keyboard shrinks the window (adjustResize).
+    // Setting resizeToAvoidBottomInset: false and adding viewInsets padding
+    // manually gives text fields room to scroll into view instead of being
+    // clipped by a compressed Expanded widget.
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -428,7 +616,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 980),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -489,7 +677,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
                         borderRadius: BorderRadius.circular(8),
                         child: LinearProgressIndicator(
                           minHeight: 10,
-                          value: (_currentStep + 1) / 4,
+                          value: (_currentStep + 1) / 5,
                           backgroundColor: SACAColorScheme.of(context).subtleBorder,
                           valueColor: AlwaysStoppedAnimation<Color>(
                             config.accentColor,
@@ -624,11 +812,11 @@ class _WorkspacePageState extends State<WorkspacePage> {
                   onTap: () {
                     // Speak the question for the current step.
                     // Step 1 (pain) prepends the pain question as a preamble.
-                    final String question = _currentStep == 1
-                        ? _stepQuestion(1)
+                    final String question = _currentStep == 2
+                        ? _stepQuestion(2)
                         : _stepQuestion(_currentStep);
                     final String? preamble =
-                        _currentStep == 1 ? _painMainCardQuestion() : null;
+                        _currentStep == 2 ? _painMainCardQuestion() : null;
                     KokoroTtsService.speak(
                       question,
                       preamble: preamble,
@@ -679,8 +867,8 @@ class _WorkspacePageState extends State<WorkspacePage> {
               child: Text(
                 SACAStrings.tr(
                   context: context,
-                  english: 'Step ${_currentStep + 1} of 4',
-                  warlpiri: 'Yimi ${_currentStep + 1} / 4',
+                  english: 'Step ${_currentStep + 1} of 5',
+                  warlpiri: 'Yimi ${_currentStep + 1} / 5',
                 ),
                 style: TextStyle(
                   fontSize: 11,
@@ -705,7 +893,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
                 // For text mode: show question heading above input
                 if (!isVoice) ...<Widget>[
                   Text(
-                    _currentStep == 1
+                    _currentStep == 2
                         ? _painMainCardQuestion()
                         : _stepQuestion(_currentStep),
                     textAlign: TextAlign.start,
@@ -721,8 +909,8 @@ class _WorkspacePageState extends State<WorkspacePage> {
 
                 // ── Scrollable content area ──────────────────────────────────
                 Expanded(
-                  child: isVoice && _currentStep == 1
-                      // Step 1 (pain scale + symptoms trend):
+                  child: isVoice && _currentStep == 2
+                      // Step 2 (pain scale + symptoms trend):
                       // Pain slider + voice input all scroll together in one view.
                       ? SingleChildScrollView(
                           child: Column(
@@ -760,7 +948,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
                                 key: ValueKey<int>(_currentStep),
                                 shrinkWrap: true,
                                 showTapToSpeakLabel: false,
-                                questionText: _stepQuestion(1),
+                                questionText: _stepQuestion(2),
                                 triageService: widget.triageService,
                                 accentColor: config.accentColor,
                                 initialTranscript: _capturedAnswers[_currentStep] ?? '',
@@ -783,7 +971,19 @@ class _WorkspacePageState extends State<WorkspacePage> {
                             ],
                           ),
                         )
-                      : isVoice
+                      : isVoice && _currentStep == 1
+                          ? _OnsetDurationStep(
+                              selected: _selectedOnsetOption,
+                              accentColor: config.accentColor,
+                              onSelected: (String value) {
+                                setState(() {
+                                  _selectedOnsetOption = value;
+                                  _session.symptomDurationDays = value;
+                                });
+                                _goNextOrSubmit();
+                              },
+                            )
+                          : isVoice
                           // Other voice steps: ClinicalInputCard handles its own scroll.
                           ? ClinicalInputCard(
                               // ValueKey forces a fresh state (empty transcript) on every step.
@@ -826,7 +1026,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
                         ),
                         onPressed: _goNextOrSubmit,
                         child: Text(
-                          _currentStep == 3
+                          _currentStep == 4
                               ? SACAStrings.tr(
                                   context: context,
                                   english: 'Calculate Triage',
@@ -862,6 +1062,15 @@ class _WorkspacePageState extends State<WorkspacePage> {
           ),
         );
       case 1:
+        return _OnsetDurationStep(
+          selected: _selectedOnsetOption,
+          accentColor: config.accentColor,
+          onSelected: (String value) => setState(() {
+            _selectedOnsetOption = value;
+            _session.symptomDurationDays = value;
+          }),
+        );
+      case 2:
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             return SingleChildScrollView(
@@ -916,7 +1125,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
             );
           },
         );
-      case 2:
+      case 3:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -952,7 +1161,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
             ),
           ],
         );
-      case 3:
+      case 4:
         return SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1043,7 +1252,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
         ),
         const SizedBox(height: 6),
         Text(
-          _stepQuestion(1),
+          _stepQuestion(2),
           style: TextStyle(
             fontSize: SACATriageTypography.sectionSub + 1,
             height: 1.35,
@@ -1065,18 +1274,23 @@ class _WorkspacePageState extends State<WorkspacePage> {
         );
       case 1:
         return _bilingualPrompt(
+          english: _kOnsetDurationQuestionEn,
+          warlpiri: _kOnsetDurationQuestionWrl,
+        );
+      case 2:
+        return _bilingualPrompt(
           english:
               'Since your symptoms began, have they been improving, staying the same, or getting worse?',
           warlpiri:
               'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
         );
-      case 2:
+      case 3:
         return _bilingualPrompt(
           english:
               'Are your symptoms deteriorating rapidly, or have they worsened significantly in the last few hours?',
           warlpiri: 'Yalumpu kuja kapingkilypa nyinami?',
         );
-      case 3:
+      case 4:
         return _bilingualPrompt(
           english:
               'Please list all current medications you are taking, and any known allergies including drug, food, or environmental allergies.',
@@ -1144,10 +1358,25 @@ class _WorkspacePageState extends State<WorkspacePage> {
   }
 
   void _goNextOrSubmit() {
+    if (_currentStep == 1 && _selectedOnsetOption.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SACAStrings.tr(
+              context: context,
+              english: 'Please choose how long you have had these symptoms.',
+              warlpiri: 'Please choose how long you have had these symptoms.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
     if (widget.mode == ReportMode.voice) {
       _session.chiefComplaint = (_capturedAnswers[0] ?? '').trim();
       _session.onset = '';
-      final String medsAllergies = (_capturedAnswers[3] ?? '').trim();
+      final String medsAllergies = (_capturedAnswers[4] ?? '').trim();
       _session.medications = medsAllergies;
       _session.allergies = medsAllergies;
     } else {
@@ -1156,8 +1385,9 @@ class _WorkspacePageState extends State<WorkspacePage> {
       _session.medications = _medicationsController.text.trim();
       _session.allergies = _allergiesController.text.trim();
     }
+    _session.symptomDurationDays = _selectedOnsetOption;
     _session.isWorsening = _isWorsening;
-    if (_currentStep < 3) {
+    if (_currentStep < 4) {
       setState(() => _currentStep += 1);
       return;
     }
@@ -1185,13 +1415,13 @@ class _WorkspacePageState extends State<WorkspacePage> {
   void _handleClinicalConfirm(String value) {
     final String cleaned = value.trim();
     _capturedAnswers[_currentStep] = cleaned;
-    if (_currentStep == 1 || _currentStep == 2) {
+    if (_currentStep == 2 || _currentStep == 3) {
       _isWorsening = _parseWorsening(cleaned);
     }
-    // Step 1 is the pain + symptoms-trend step. If the user mentions a number
+    // Step 2 is the pain + symptoms-trend step. If the user mentions a number
     // in their spoken answer (e.g. "getting worse, pain is about seven out of ten")
     // automatically snap the slider to that value — no second mic needed.
-    if (_currentStep == 1) {
+    if (_currentStep == 2) {
       final int? detected = _parsePainScoreFromText(cleaned);
       if (detected != null) {
         setState(() => _session.painScore = detected.clamp(1, 10));
@@ -1469,6 +1699,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
   // Tracks which section labels are currently collapsed (tapping header toggles).
   final Set<String> _collapsedSections         = <String>{};
   bool _showSymptomLabels                      = true;
+  String _selectedOnsetOption                  = '';
 
   // Returns region groups (display name + catalog keys) for the selected parts.
   List<({String label, List<String> keys})> get _regionGroups {
@@ -1527,9 +1758,25 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
       return;
     }
 
-    // Step 1 (systemic) is optional — no validation needed.
+    // Step 1 (onset duration) requires a selection.
+    if (_currentStep == 1 && _selectedOnsetOption.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SACAStrings.tr(
+              context: context,
+              english: 'Please choose how long you have had these symptoms.',
+              warlpiri: 'Please choose how long you have had these symptoms.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
 
-    if (_currentStep < 3) {
+    // Step 2 (systemic) is optional — no validation needed.
+
+    if (_currentStep < 4) {
       setState(() => _currentStep += 1);
       return;
     }
@@ -1542,6 +1789,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
     };
     widget.session.chiefComplaint = allSymptoms.join(', ');
     widget.session.onset = '';
+    widget.session.symptomDurationDays = _selectedOnsetOption;
     widget.session.isWorsening = _isWorsening;
     widget.session.medications = _selectedMedications.isEmpty
         ? ''
@@ -1574,19 +1822,24 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
     switch (step) {
       case 1:
         return _bilingualPrompt(
+          english: _kOnsetDurationQuestionEn,
+          warlpiri: _kOnsetDurationQuestionWrl,
+        );
+      case 2:
+        return _bilingualPrompt(
           english:
               'Are you experiencing any general body symptoms such as fever, fatigue, nausea, chills, or dizziness?',
           warlpiri:
               'Nyuntu ngurra-jarra ngurrju-kari nyinami — pirli-pirli, wiri-wiri, nyiya-nyiyami, kirda-kirda kuja?',
         );
-      case 2:
+      case 3:
         return _bilingualPrompt(
           english:
               'Overall, are your symptoms improving, remaining unchanged, or getting worse?',
           warlpiri:
               'Ngula-kari yimi-ngarrka nyinami warlalja-warnu, panu-kari yinyami?',
         );
-      case 3:
+      case 4:
         return _bilingualPrompt(
           english:
               'Please list all current medications and any known allergies, including drug, food, or environmental allergies.',
@@ -2020,7 +2273,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               minHeight: 10,
-              value: (_currentStep + 1) / 4,
+              value: (_currentStep + 1) / 5,
               backgroundColor: SACAColorScheme.of(context).subtleBorder,
               valueColor: AlwaysStoppedAnimation<Color>(
                 widget.workspace.accentColor,
@@ -2036,7 +2289,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  _currentStep == 2
+                  _currentStep == 3
                       ? _painMainCardQuestion()
                       : _stepQuestion(_currentStep),
                   style: TextStyle(
@@ -2068,7 +2321,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
                       ),
                       onPressed: _goNext,
                       child: Text(
-                        _currentStep == 3
+                        _currentStep == 4
                             ? SACAStrings.tr(
                                 context: context,
                                 english: 'Continue',
@@ -2094,8 +2347,17 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
   Widget _buildStepInput() {
     switch (_currentStep) {
       case 1:
-        return _buildSystemicSymptomsStep();
+        return _OnsetDurationStep(
+          selected: _selectedOnsetOption,
+          accentColor: widget.workspace.accentColor,
+          onSelected: (String value) => setState(() {
+            _selectedOnsetOption = value;
+            widget.session.symptomDurationDays = value;
+          }),
+        );
       case 2:
+        return _buildSystemicSymptomsStep();
+      case 3:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
@@ -2139,7 +2401,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
             ),
           ],
         );
-      case 3:
+      case 4:
         return _buildMedAllergyStep();
       default:
         return const SizedBox.shrink();
@@ -2476,7 +2738,7 @@ class _IllnessSelectionPageState extends State<_IllnessSelectionPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          _stepQuestion(2),
+          _stepQuestion(3),
           style: TextStyle(
             fontSize: SACATriageTypography.sectionSub + 1,
             height: 1.35,
@@ -2627,7 +2889,7 @@ class _PreResultPainPageState extends State<PreResultPainPage> {
                                   Navigator.of(context)
                                       .push<AssessmentPreOutcome>(
                                         MaterialPageRoute<AssessmentPreOutcome>(
-                                          builder: (_) => PreResultNotesPage(
+                                          builder: (_) => PreResultDurationPage(
                                             session: widget.session,
                                             triageService: widget.triageService,
                                             workspace: widget.workspace,
@@ -2669,6 +2931,302 @@ class _PreResultPainPageState extends State<PreResultPainPage> {
     );
   }
 }
+
+// ── Symptom Duration Page ─────────────────────────────────────────────────────
+
+class PreResultDurationPage extends StatefulWidget {
+  const PreResultDurationPage({
+    super.key,
+    required this.session,
+    required this.triageService,
+    required this.workspace,
+    required this.heroTag,
+    required this.heroIcon,
+  });
+
+  final TriageSession     session;
+  final TriageService     triageService;
+  final WorkspaceConfig   workspace;
+  final String            heroTag;
+  final IconData          heroIcon;
+
+  @override
+  State<PreResultDurationPage> createState() => _PreResultDurationPageState();
+}
+
+class _PreResultDurationPageState extends State<PreResultDurationPage> {
+  String? _selected;
+
+  void _speak() {
+    final AppLanguage lang = SACAStateScope.of(context).selectedLanguage;
+    KokoroTtsService.speak(
+      lang == AppLanguage.warlpiri
+          ? _kOnsetDurationQuestionWrl
+          : _kOnsetDurationQuestionEn,
+      language: lang,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.session.symptomDurationDays.isEmpty
+        ? null
+        : widget.session.symptomDurationDays;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && SACAStateScope.of(context).isVoiceoverEnabled) _speak();
+    });
+  }
+
+  @override
+  void dispose() {
+    KokoroTtsService.stop();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final SACAColorScheme cs     = SACAColorScheme.of(context);
+    final bool            isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color           accent = widget.workspace.accentColor;
+    final AppLanguage     lang   = SACAStateScope.of(context).selectedLanguage;
+
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: cs.pageBackground,
+      appBar: AppBar(
+        backgroundColor: cs.pageBackground,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          widget.workspace.title,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.volume_up_rounded),
+            onPressed: _speak,
+          ),
+          const SACAQuickActions(),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 980),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // ── Progress bar ────────────────────────────────────────────
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      minHeight: 10,
+                      value: 0.66,
+                      backgroundColor: cs.subtleBorder,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+
+                  // ── Question ────────────────────────────────────────────────
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english:  _kOnsetDurationQuestionEn,
+                      warlpiri: _kOnsetDurationQuestionWrl,
+                    ),
+                    style: TextStyle(
+                      fontSize:   SACATriageTypography.sectionLead,
+                      fontWeight: FontWeight.w800,
+                      color:      cs.charcoal,
+                      height:     1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    SACAStrings.tr(
+                      context: context,
+                      english:  'Tap the option that best matches your situation.',
+                      warlpiri: 'Paniki-rla nyuntu kuja karrija.',
+                    ),
+                    style: TextStyle(
+                      color:    cs.secondaryText,
+                      fontSize: SACATriageTypography.sectionSub,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Duration option cards ────────────────────────────────────
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: _kDurationOptions.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (BuildContext ctx, int i) {
+                        final _DurationOption opt = _kDurationOptions[i];
+                        final bool chosen = _selected == opt.value;
+                        return GestureDetector(
+                          onTap: () => setState(() => _selected = opt.value),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOut,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 18),
+                            decoration: BoxDecoration(
+                              color: chosen
+                                  ? accent.withValues(alpha: isDark ? 0.22 : 0.10)
+                                  : cs.cardBackground,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: chosen ? accent : cs.subtleBorder,
+                                width: chosen ? 2.0 : 1.0,
+                              ),
+                              boxShadow: chosen
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: accent.withValues(alpha: 0.18),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                // Icon badge
+                                Container(
+                                  width: 48, height: 48,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: chosen
+                                        ? accent.withValues(alpha: 0.18)
+                                        : cs.inputFill,
+                                  ),
+                                  child: Icon(
+                                    opt.icon,
+                                    color: chosen ? accent : cs.secondaryText,
+                                    size: 26,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // Labels
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        lang == AppLanguage.warlpiri
+                                            ? opt.labelWrl
+                                            : opt.labelEn,
+                                        style: TextStyle(
+                                          fontSize:   17,
+                                          fontWeight: FontWeight.w700,
+                                          color: chosen ? accent : cs.charcoal,
+                                        ),
+                                      ),
+                                      if (lang == AppLanguage.warlpiri)
+                                        Text(
+                                          opt.labelEn,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: cs.secondaryText,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                // Check mark
+                                if (chosen)
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    color: accent,
+                                    size: 26,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── Action row ──────────────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(context)
+                            .pop(AssessmentPreOutcome.redo),
+                        icon: const Icon(Icons.replay_rounded),
+                        label: Text(SACAStrings.tr(
+                          context: context,
+                          english:  'Redo assessment',
+                          warlpiri: 'Redo assessment',
+                        )),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _selected == null
+                              ? cs.subtleBorder
+                              : accent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: _selected == null
+                            ? null
+                            : () {
+                                widget.session.symptomDurationDays =
+                                    _selected!;
+                                Navigator.of(context)
+                                    .push<AssessmentPreOutcome>(
+                                      MaterialPageRoute<AssessmentPreOutcome>(
+                                        builder: (_) => PreResultNotesPage(
+                                          session:      widget.session,
+                                          triageService: widget.triageService,
+                                          workspace:    widget.workspace,
+                                          heroTag:      widget.heroTag,
+                                          heroIcon:     widget.heroIcon,
+                                        ),
+                                      ),
+                                    )
+                                    .then((AssessmentPreOutcome? outcome) {
+                                      if (!context.mounted) return;
+                                      if (outcome ==
+                                          AssessmentPreOutcome.redo) {
+                                        Navigator.of(context)
+                                            .pop(AssessmentPreOutcome.redo);
+                                      }
+                                    });
+                              },
+                        child: Text(SACAStrings.tr(
+                          context: context,
+                          english:  'Continue',
+                          warlpiri: 'Continue',
+                        )),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class PreResultNotesPage extends StatefulWidget {
   const PreResultNotesPage({
@@ -2735,7 +3293,10 @@ class _PreResultNotesPageState extends State<PreResultNotesPage> {
     final WorkspaceConfig config = widget.workspace;
     final Color accent = config.accentColor;
 
+    final double bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: SACAColorScheme.of(context).pageBackground,
       appBar: AppBar(
         leading: IconButton(
@@ -2754,7 +3315,7 @@ class _PreResultNotesPageState extends State<PreResultNotesPage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 980),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[

@@ -421,6 +421,41 @@ class _KokoroModelTile extends StatelessWidget {
                 ),
               ],
 
+              // ── Enable / disable toggle (only when ready) ────────────────
+              if (state == KokoroState.ready) ...<Widget>[
+                const SizedBox(height: 12),
+                ValueListenableBuilder<bool>(
+                  valueListenable: KokoroTtsService.enabledNotifier,
+                  builder: (BuildContext ctx2, bool enabled, _) {
+                    return Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            enabled
+                                ? 'Neural voice active — tap to switch to system TTS'
+                                : 'Using system TTS — tap to switch to Kokoro',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.secondaryText,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Switch(
+                          value: enabled,
+                          onChanged: (bool v) =>
+                              KokoroTtsService.enabledNotifier.value = v,
+                          activeThumbColor: SACAColors.deepClinicalGreen,
+                          activeTrackColor:
+                              SACAColors.deepClinicalGreen.withValues(alpha: 0.4),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+
               // ── Action button ────────────────────────────────────────────
               if (state == KokoroState.notDownloaded ||
                   state == KokoroState.error) ...<Widget>[
